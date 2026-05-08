@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+
+# Build
+dist/
+*.local
+
+# Env (never commit secrets)
+.env
+.env.*
+!.env.example
+
+# Logs & debug
+logs/
+*.log
+npm-debug.log*
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Test / coverage
+coverage/
