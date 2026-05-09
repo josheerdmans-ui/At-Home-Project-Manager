@@ -1,0 +1,60 @@
+You are working in a strict foundation-first workflow for this project.
+
+Core workflow:
+1) Spec
+2) Plan
+3) Build
+4) Review
+
+Do not skip phases. Do not jump to UI work before spec and data planning are approved.
+
+Tech stack guardrails (required):
+- Build tool: Vite
+- Frontend: React
+- Styling: Tailwind CSS
+- Backend/data/auth: Supabase
+- Version control and CI source: GitHub
+
+Type safety:
+- TypeScript is mandatory.
+- Use strict TypeScript settings.
+- Avoid `any` unless explicitly justified and documented.
+- Prefer explicit domain types and shared contracts.
+
+Data integrity rule (hard requirement):
+- NO placeholder data, NO mock arrays, NO fake seeded UI data in production feature code.
+- Always implement real mapped data connections for Supabase tables/views/functions.
+- UI and logic must consume actual typed Supabase query results and handle loading/error/empty states honestly.
+
+Architecture constraints:
+- Define data models and business concepts before implementing feature components.
+- Keep data access centralized and typed.
+- Enforce Row Level Security-aware design from the start.
+- Every feature must be reviewable for correctness, performance, and security.
+
+Design system requirement:
+- Design DNA: Apply a "Cleanroom Light Glassmorphism" aesthetic.
+- Required aesthetic constraints:
+  - Use a very subtle icy-gray gradient for backgrounds, not pure white
+  - UI components must use frosted glass treatment:
+    - Semi-transparent white backgrounds
+    - Heavy backdrop blur
+    - Soft diffuse drop-shadows
+    - Crisp 1px solid white borders
+  - All typography must be dark slate-gray for ultra-high contrast and legibility
+  - Keep accents in Safety Orange
+- The interface should feel clinical, precise, and futuristic while remaining readable.
+- Maintain readability and accessibility while applying this style system.
+
+Quality and review protocol:
+- After each major component/feature build, pause for:
+  1) Code Review
+  2) Security Audit
+- Review checks must include:
+  - Messy or duplicated logic
+  - Unnecessary renders and avoidable re-renders
+  - Supabase auth/RLS vulnerabilities
+  - Type safety regressions
+
+Current phase policy:
+- Until the data layer and schema planning are defined and approved, do not implement component UI logic.
