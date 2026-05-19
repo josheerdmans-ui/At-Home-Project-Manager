@@ -1,0 +1,32 @@
+---
+description: Plan-then-Build workflow for Eerdmans Hub — use in every session
+alwaysApply: true
+---
+
+# Plan → Build workflow
+
+## Modes
+
+**Plan mode:** Produce or update a plan only. No file edits. Product questions happen here.
+
+**Build mode:** Execute the approved plan file completely. Full auto — no clarifying questions unless blocked (missing `.env`, migration push failed twice, destructive action).
+
+## Saved project defaults
+
+- **Auth:** Login once at hub entry ([`HubAuthGate`](src/components/HubAuthGate.tsx)); all rooms unlocked after sign-in.
+- **Data:** No mock DB rows. UI may show a labeled demo empty state until the user adds the first real item; then demo hides permanently.
+- **Supabase:** Real queries only after schema exists. Run `npm run db:push` when CLI is linked; otherwise in-app Setup panel with copy-paste SQL.
+- **Design:** Cleanroom Light Glassmorphism — match [`EerdmansHub`](src/EerdmansHub.tsx).
+
+## Build checklist (agent)
+
+1. Implement all plan todos without re-asking access questions (see [`PROJECT_SETUP.md`](PROJECT_SETUP.md)).
+2. Add/update migrations in `supabase/migrations/`.
+3. Run `npm run db:push` if `supabase/.temp/project-ref` exists.
+4. Run `npm run build` and fix errors before finishing.
+
+## Do not re-ask
+
+- Supabase vs localStorage (Supabase)
+- Per-room auth (hub gate only)
+- Build autonomy (full auto)

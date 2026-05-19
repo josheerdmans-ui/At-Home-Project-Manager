@@ -1,0 +1,16 @@
+# Minimal Supabase CLI config for `npm run db:push`
+# https://supabase.com/docs/guides/cli/config
+
+project_id = ""
+
+[api]
+enabled = true
+
+[db]
+major_version = 15
+
+[db.migrations]
+enabled = true
+
+[storage]
+enabled = true
