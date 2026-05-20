@@ -9,12 +9,7 @@ import { NewDocumentModal } from "./NewDocumentModal";
 import { DEMO_DOCUMENT } from "./types";
 import { filterDocuments } from "./vault-utils";
 import type { VaultDocType, VaultDocumentRow } from "../../../types";
-import {
-  isMissingTableError,
-  useVaultDocuments,
-  useVaultDocumentsMutations,
-  vaultHasRealData,
-} from "./useVaultDocuments";
+import { isMissingTableError, useVaultDocuments, useVaultDocumentsMutations } from "./useVaultDocuments";
 
 export function VaultRoom() {
   const { data: documents = [], isLoading, error } = useVaultDocuments();
@@ -24,7 +19,7 @@ export function VaultRoom() {
   const [searchQuery, setSearchQuery] = useState("");
   const [docTypeFilter, setDocTypeFilter] = useState<VaultDocType | "all">("all");
 
-  const showDemo = !vaultHasRealData() && documents.length === 0 && !isLoading && !error;
+  const showDemo = documents.length === 0 && !isLoading && !error;
 
   const filtered = useMemo(
     () => filterDocuments(documents, searchQuery, docTypeFilter),

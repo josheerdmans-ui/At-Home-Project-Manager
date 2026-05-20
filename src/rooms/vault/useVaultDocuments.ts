@@ -4,15 +4,6 @@ import type { VaultDocumentInsert, VaultDocumentUpdate, VaultExtraFile } from ".
 import { defaultVaultTitle, parseExtraFiles, sanitizeFileName } from "./vault-utils";
 
 const VAULT_KEY = ["vault_documents"] as const;
-const VAULT_HAS_DATA_KEY = "eerdmans_vault_has_data";
-
-export function vaultHasRealData(): boolean {
-  return localStorage.getItem(VAULT_HAS_DATA_KEY) === "1";
-}
-
-export function markVaultHasData() {
-  localStorage.setItem(VAULT_HAS_DATA_KEY, "1");
-}
 
 export function isMissingTableError(message: string) {
   return (
@@ -106,7 +97,6 @@ export function useVaultDocumentsMutations() {
 
       const { data, error } = await supabase.from("vault_documents").insert(row).select().single();
       if (error) throw error;
-      markVaultHasData();
       return { ...data, extra_files: parseExtraFiles(data.extra_files) };
     },
     onSuccess: invalidate,

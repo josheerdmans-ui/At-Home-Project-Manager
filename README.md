@@ -1,12 +1,18 @@
-# At Home Project Manager
+# At Home Project Manager (Eerdmans Hub)
 
-Blank foundation for a home management app. Stack: Vite + React + TypeScript + Tailwind + Supabase.
+Family home hub: Vite + React + TypeScript + Tailwind + Supabase.
 
-## Setup
+## Local setup
 
 1. Copy `.env.example` to `.env` and add your Supabase URL and anon key.
 2. `npm install`
 3. `npm run dev`
+
+See [PROJECT_SETUP.md](PROJECT_SETUP.md) for auth and database setup.
+
+## Deploy online
+
+**[DEPLOY.md](DEPLOY.md)** — Supabase schema + Vercel (GitHub: `hardtopixjosh-concrete/At-Home-Project-Manager`).
 
 ## Resetting Supabase
 

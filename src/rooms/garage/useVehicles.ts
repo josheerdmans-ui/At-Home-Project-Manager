@@ -4,15 +4,6 @@ import type { VehicleInsert, VehicleIssueInsert, VehicleUpdate } from "../../../
 import type { VehicleWithIssues } from "./types";
 
 const VEHICLES_KEY = ["vehicles"] as const;
-const GARAGE_HAS_DATA_KEY = "eerdmans_garage_has_data";
-
-export function garageHasRealData(): boolean {
-  return localStorage.getItem(GARAGE_HAS_DATA_KEY) === "1";
-}
-
-export function markGarageHasData() {
-  localStorage.setItem(GARAGE_HAS_DATA_KEY, "1");
-}
 
 function isMissingTableError(message: string) {
   return (
@@ -49,7 +40,6 @@ export function useVehiclesMutations() {
     mutationFn: async (input: VehicleInsert) => {
       const { data, error } = await supabase.from("vehicles").insert(input).select().single();
       if (error) throw error;
-      markGarageHasData();
       return data;
     },
     onSuccess: invalidate,

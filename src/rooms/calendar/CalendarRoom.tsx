@@ -12,14 +12,16 @@ import {
   toDateKey,
   type CalendarEvent,
 } from "../../lib/calendar-aggregate";
-import {
-  deleteFamilyCalendarEvent,
-  listFamilyCalendarEvents,
-  saveFamilyCalendarEvent,
-  type FamilyEventCategory,
-} from "../../lib/calendar-events-store";
+import type { FamilyEventCategory } from "../../lib/calendar-events-store";
+import { DbSetupPanel } from "../../components/DbSetupPanel";
+import { CALENDAR_SETUP_SQL } from "../../lib/calendar-setup-sql";
 import { isMissingTableError as garageMissing, useVehicles } from "../garage/useVehicles";
 import { isMissingTableError as vaultMissing, useVaultDocuments } from "../vault/useVaultDocuments";
+import {
+  isMissingFamilyCalendarTableError,
+  useFamilyCalendarEvents,
+  useFamilyCalendarEventsMutations,
+} from "./useFamilyCalendarEvents";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
 
@@ -89,7 +91,6 @@ export function CalendarRoom() {
     const n = new Date();
     return new Date(n.getFullYear(), n.getMonth(), 1);
   });
-  const [refresh, setRefresh] = useState(0);
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -99,6 +100,8 @@ export function CalendarRoom() {
   const [formCategory, setFormCategory] = useState<FamilyEventCategory>("general");
   const [formNotes, setFormNotes] = useState("");
 
+  const { data: familyEvents = [], error: familyError } = useFamilyCalendarEvents();
+  const familyMut = useFamilyCalendarEventsMutations();
   const { data: vehicles = [], error: vehicleError } = useVehicles();
   const { data: documents = [], error: vaultError } = useVaultDocuments();
 
@@ -109,17 +112,14 @@ export function CalendarRoom() {
   const month = viewDate.getMonth();
 
   const monthEvents = useMemo(() => {
-    void refresh;
-    const family = familyEventsToCalendar(listFamilyCalendarEvents());
+    const family = familyEventsToCalendar(familyEvents);
     const garage = garageUnavailable ? [] : collectGarageCalendarEvents(vehicles);
     const vault = vaultUnavailable ? [] : collectVaultCalendarEvents(documents);
     return eventsInMonth(mergeCalendarEvents(family, garage, vault), year, month);
-  }, [refresh, vehicles, documents, garageUnavailable, vaultUnavailable, year, month]);
+  }, [familyEvents, vehicles, documents, garageUnavailable, vaultUnavailable, year, month]);
 
   const grid = useMemo(() => buildMonthGrid(year, month), [year, month]);
   const weekCount = grid.length / 7;
-
-  const bump = () => setRefresh((n) => n + 1);
 
   const goMonth = (delta: number) => {
     setViewDate((d) => new Date(d.getFullYear(), d.getMonth() + delta, 1));
@@ -156,7 +156,7 @@ export function CalendarRoom() {
 
   const openEdit = (ev: CalendarEvent) => {
     if (!ev.familyEventId) return;
-    const family = listFamilyCalendarEvents().find((e) => e.id === ev.familyEventId);
+    const family = familyEvents.find((e) => e.id === ev.familyEventId);
     if (!family) return;
     setEditingId(family.id);
     setFormTitle(family.title);
@@ -169,25 +169,40 @@ export function CalendarRoom() {
 
   const handleSave = () => {
     if (!formTitle.trim()) return;
-    saveFamilyCalendarEvent({
-      id: editingId ?? undefined,
-      title: formTitle.trim(),
-      date: formDate,
-      time: formTime.trim() || null,
-      category: formCategory,
-      notes: formNotes.trim() || null,
-    });
-    bump();
-    closeForm();
+    familyMut.saveEvent.mutate(
+      {
+        id: editingId ?? undefined,
+        title: formTitle.trim(),
+        date: formDate,
+        time: formTime.trim() || null,
+        category: formCategory,
+        notes: formNotes.trim() || null,
+      },
+      { onSuccess: closeForm },
+    );
   };
 
   const handleDelete = () => {
     if (!editingId) return;
     if (!confirm("Delete this event?")) return;
-    deleteFamilyCalendarEvent(editingId);
-    bump();
-    closeForm();
+    familyMut.deleteEvent.mutate(editingId, { onSuccess: closeForm });
   };
+
+  if (familyError && isMissingFamilyCalendarTableError(familyError.message)) {
+    return (
+      <div className="relative z-10 flex min-h-full w-full flex-col p-12 pb-24">
+        <div className="mb-6 flex items-center gap-4">
+          <div className="rounded-2xl border border-white/50 bg-cyan-100 p-4 text-cyan-700 shadow-inner">
+            <CalendarDays size={40} />
+          </div>
+          <h1 className="text-4xl font-black tracking-tight text-slate-800">Master Calendar</h1>
+        </div>
+        <div className="flex flex-1 items-center justify-center">
+          <DbSetupPanel title="Calendar database setup" sql={CALENDAR_SETUP_SQL} />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative z-10 flex min-h-full w-full flex-col p-12 pb-24">

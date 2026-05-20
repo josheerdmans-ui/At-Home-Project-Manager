@@ -4,9 +4,89 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Eerdmans Hub</title>
+    <style>
+      #boot-error {
+        display: none;
+        max-width: 28rem;
+        margin: 2rem auto;
+        padding: 1.25rem 1.5rem;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-size: 15px;
+        line-height: 1.5;
+        color: #1e293b;
+        background: #fff;
+        border: 1px solid #cbd5e1;
+        border-radius: 1rem;
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+      }
+      #boot-error h2 {
+        margin: 0 0 0.5rem;
+        font-size: 1.125rem;
+      }
+      #boot-error p {
+        margin: 0 0 0.75rem;
+      }
+      #boot-error code {
+        display: block;
+        margin-top: 0.5rem;
+        padding: 0.5rem;
+        font-size: 12px;
+        word-break: break-word;
+        background: #f1f5f9;
+        border-radius: 0.5rem;
+      }
+    </style>
   </head>
   <body>
+    <div id="boot-error" role="alert">
+      <h2>Could not start Eerdmans Hub</h2>
+      <p id="boot-error-text">
+        This browser may be too old to run the app. Try a newer phone, tablet, or computer.
+      </p>
+      <code id="boot-error-detail"></code>
+    </div>
     <div id="root"></div>
+    <script>
+      (function () {
+        var panel = document.getElementById("boot-error");
+        var text = document.getElementById("boot-error-text");
+        var detail = document.getElementById("boot-error-detail");
+        var root = document.getElementById("root");
+
+        function show(msg, technical) {
+          if (!panel || !root) return;
+          if (root.childNodes.length > 0) return;
+          panel.style.display = "block";
+          if (text && msg) text.textContent = msg;
+          if (detail) detail.textContent = technical || "";
+        }
+
+        window.addEventListener("error", function (e) {
+          show(
+            "This browser may be too old to run the app. Try a newer device, or update Safari if you can.",
+            e.message || "Script error"
+          );
+        });
+
+        window.addEventListener("unhandledrejection", function (e) {
+          var reason = e.reason;
+          var msg = reason && reason.message ? reason.message : String(reason);
+          show(
+            "Something went wrong while loading. Try refreshing, or use a newer browser.",
+            msg
+          );
+        });
+
+        setTimeout(function () {
+          if (root && root.childNodes.length === 0) {
+            show(
+              "Still loading… If this stays blank, your browser may not support this app (iOS 12 and older Safari often need a newer device).",
+              ""
+            );
+          }
+        }, 15000);
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

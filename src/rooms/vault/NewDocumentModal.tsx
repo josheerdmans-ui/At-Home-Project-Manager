@@ -1,7 +1,11 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { ArrowLeft, X } from "lucide-react";
 import type { VaultCategory, VaultDocType } from "../../../types";
-import { getHouseProject, listHouseProjects } from "../../lib/house-projects-store";
+import {
+  filterHouseProjects,
+  findHouseProject,
+  useHouseProjects,
+} from "../projects/useHouseProjects";
 import type { CreateVaultDocumentInput } from "./useVaultDocuments";
 import { defaultVaultTitle } from "./vault-utils";
 import { DOC_TYPE_OPTIONS } from "./types";
@@ -227,7 +231,11 @@ function ProjectNoteForm({
   onCreate: (input: CreateVaultDocumentInput) => Promise<void>;
 }) {
   const projectKind = docType === "repair_note" ? "repair" : "remodel";
-  const projects = useMemo(() => listHouseProjects(projectKind), [projectKind]);
+  const { data: allProjects = [] } = useHouseProjects();
+  const projects = useMemo(
+    () => filterHouseProjects(allProjects, projectKind),
+    [allProjects, projectKind],
+  );
 
   const [title, setTitle] = useState("");
   const [details, setDetails] = useState("");
@@ -239,7 +247,7 @@ function ProjectNoteForm({
   const applyProject = (projectId: string) => {
     setImportProjectId(projectId);
     if (!projectId) return;
-    const p = getHouseProject(projectId);
+    const p = findHouseProject(allProjects, projectId);
     if (!p) return;
     setTitle(p.title);
     setDetails(p.details);
@@ -249,7 +257,7 @@ function ProjectNoteForm({
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    const project = importProjectId ? getHouseProject(importProjectId) : undefined;
+    const project = importProjectId ? findHouseProject(allProjects, importProjectId) : undefined;
     await onCreate({
       doc_type: docType,
       title: defaultVaultTitle(docType, title || project?.title),

@@ -7,7 +7,7 @@ import { CarCard } from "./CarCard";
 import { CarDetailView } from "./CarDetailView";
 import { countOpenIssues } from "./garage-utils";
 import { DEMO_VEHICLE, type VehicleWithIssues } from "./types";
-import { garageHasRealData, isMissingTableError, useVehicles, useVehiclesMutations } from "./useVehicles";
+import { isMissingTableError, useVehicles, useVehiclesMutations } from "./useVehicles";
 
 export function GarageRoom() {
   const { data: vehicles = [], isLoading, error } = useVehicles();
@@ -15,7 +15,7 @@ export function GarageRoom() {
   const [showAdd, setShowAdd] = useState(false);
   const [selected, setSelected] = useState<VehicleWithIssues | null>(null);
 
-  const showDemo = !garageHasRealData() && vehicles.length === 0 && !isLoading && !error;
+  const showDemo = vehicles.length === 0 && !isLoading && !error;
   const openCount = countOpenIssues(vehicles);
 
   if (error && isMissingTableError(error.message)) {

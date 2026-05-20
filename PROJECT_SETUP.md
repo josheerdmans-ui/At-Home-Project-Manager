@@ -23,6 +23,10 @@ When you open a room that needs the database, the app shows a **Setup** panel wi
 
 Enable **Email** provider in Supabase → Authentication → Providers. Create family accounts in Authentication → Users (or sign up via the hub login screen).
 
+## Production
+
+See **[DEPLOY.md](DEPLOY.md)** for Vercel + Supabase URL/auth configuration.
+
 ## Workflow
 
 1. **Plan mode** — design a page; approve the plan file

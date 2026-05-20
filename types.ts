@@ -11,6 +11,8 @@ export type IssueStatus = "open" | "fixed";
 export type VaultCategory = "appliances" | "electronics" | "home_repair" | "vehicles";
 export type VaultDocType = "warranty" | "house_document" | "repair_note" | "remodel_note";
 export type ImagePhotoKind = "memory" | "person";
+export type HouseProjectKind = "repair" | "remodel" | "general";
+export type FamilyEventCategory = "general" | "meal" | "activity" | "appointment";
 
 export type VaultExtraFile = {
   path: string;
@@ -215,6 +217,72 @@ export interface Database {
         };
         Relationships: [];
       };
+      house_projects: {
+        Row: {
+          id: string;
+          title: string;
+          kind: HouseProjectKind;
+          details: string;
+          cost: number | null;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          title: string;
+          kind: HouseProjectKind;
+          details?: string;
+          cost?: number | null;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          title?: string;
+          kind?: HouseProjectKind;
+          details?: string;
+          cost?: number | null;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      family_calendar_events: {
+        Row: {
+          id: string;
+          title: string;
+          event_date: string;
+          event_time: string | null;
+          category: FamilyEventCategory;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          title: string;
+          event_date: string;
+          event_time?: string | null;
+          category?: FamilyEventCategory;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          title?: string;
+          event_date?: string;
+          event_time?: string | null;
+          category?: FamilyEventCategory;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -236,3 +304,9 @@ export type VaultDocumentUpdate = Tables["vault_documents"]["Update"];
 export type ImageVaultPhotoRow = Tables["image_vault_photos"]["Row"];
 export type ImageVaultPhotoInsert = Tables["image_vault_photos"]["Insert"];
 export type ImageVaultPhotoUpdate = Tables["image_vault_photos"]["Update"];
+export type HouseProjectRow = Tables["house_projects"]["Row"];
+export type HouseProjectInsert = Tables["house_projects"]["Insert"];
+export type HouseProjectUpdate = Tables["house_projects"]["Update"];
+export type FamilyCalendarEventRow = Tables["family_calendar_events"]["Row"];
+export type FamilyCalendarEventInsert = Tables["family_calendar_events"]["Insert"];
+export type FamilyCalendarEventUpdate = Tables["family_calendar_events"]["Update"];

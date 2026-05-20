@@ -1,11 +1,9 @@
 import { useState, type FormEvent } from "react";
 import { Archive, Plus, Trash2 } from "lucide-react";
-import {
-  deleteHouseProject,
-  listHouseProjects,
-  saveHouseProject,
-  type HouseProjectKind,
-} from "../../lib/house-projects-store";
+import { DbSetupPanel } from "../../components/DbSetupPanel";
+import { HOUSE_PROJECTS_SETUP_SQL } from "../../lib/house-projects-setup-sql";
+import type { HouseProjectKind } from "../../lib/house-projects-store";
+import { isMissingHouseProjectsTableError, useHouseProjects, useHouseProjectsMutations } from "./useHouseProjects";
 
 const KINDS: { value: HouseProjectKind; label: string }[] = [
   { value: "repair", label: "Repair" },
@@ -14,37 +12,36 @@ const KINDS: { value: HouseProjectKind; label: string }[] = [
 ];
 
 export function HouseProjectsRoom() {
-  const [refresh, setRefresh] = useState(0);
-  const projects = listHouseProjects();
+  const { data: projects = [], isLoading, error } = useHouseProjects();
+  const mut = useHouseProjectsMutations();
   const [showAdd, setShowAdd] = useState(false);
 
-  const bump = () => setRefresh((n) => n + 1);
+  if (error && isMissingHouseProjectsTableError(error.message)) {
+    return (
+      <div className="flex min-h-full flex-col p-12">
+        <Header onAdd={() => setShowAdd(true)} />
+        <div className="flex flex-1 items-center justify-center">
+          <DbSetupPanel title="House projects database setup" sql={HOUSE_PROJECTS_SETUP_SQL} />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-full p-12">
-      <div className="mb-8 flex flex-wrap items-center gap-4 pr-44">
-        <div className="rounded-2xl bg-cyan-100 p-4 text-cyan-700">
-          <Archive size={40} />
-        </div>
-        <h1 className="text-4xl font-black tracking-tight text-slate-800">House Projects</h1>
-        <button
-          type="button"
-          onClick={() => setShowAdd(true)}
-          className="flex items-center gap-2 rounded-full border border-white/80 bg-white/80 px-5 py-2.5 text-sm font-bold text-slate-800 shadow-[0_8px_30px_rgb(0,0,0,0.12)] backdrop-blur-xl transition hover:bg-cyan-600 hover:text-white"
-        >
-          <Plus size={18} />
-          New project
-        </button>
-      </div>
+      <Header onAdd={() => setShowAdd(true)} />
 
       <p className="mb-6 max-w-2xl text-sm font-medium text-slate-600">
         Track repairs and remodels here. Import them into The Vault when saving repair or remodel notes.
+        Projects sync across all devices when you are signed in.
       </p>
 
-      {projects.length === 0 ? (
+      {isLoading ? (
+        <p className="text-center text-slate-500">Loading projects…</p>
+      ) : projects.length === 0 ? (
         <p className="text-center text-slate-500">No projects yet — add one to import into the Vault.</p>
       ) : (
-        <ul key={refresh} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {projects.map((p) => (
             <li
               key={p.id}
@@ -62,13 +59,13 @@ export function HouseProjectsRoom() {
               )}
               <button
                 type="button"
+                disabled={mut.deleteProject.isPending}
                 onClick={() => {
                   if (confirm(`Delete project "${p.title}"?`)) {
-                    deleteHouseProject(p.id);
-                    bump();
+                    mut.deleteProject.mutate(p.id);
                   }
                 }}
-                className="inline-flex items-center gap-1 text-sm font-bold text-red-600 hover:text-red-800"
+                className="inline-flex items-center gap-1 text-sm font-bold text-red-600 hover:text-red-800 disabled:opacity-50"
               >
                 <Trash2 size={14} /> Delete
               </button>
@@ -77,12 +74,18 @@ export function HouseProjectsRoom() {
         </ul>
       )}
 
+      {error && !isMissingHouseProjectsTableError(error.message) && (
+        <p className="mt-6 text-center text-sm font-medium text-red-600">{error.message}</p>
+      )}
+
       {showAdd && (
         <AddProjectModal
+          busy={mut.createProject.isPending}
           onClose={() => setShowAdd(false)}
-          onSave={() => {
-            bump();
-            setShowAdd(false);
+          onSave={(input) => {
+            mut.createProject.mutate(input, {
+              onSuccess: () => setShowAdd(false),
+            });
           }}
         />
       )}
@@ -90,7 +93,40 @@ export function HouseProjectsRoom() {
   );
 }
 
-function AddProjectModal({ onClose, onSave }: { onClose: () => void; onSave: () => void }) {
+function Header({ onAdd }: { onAdd: () => void }) {
+  return (
+    <div className="mb-8 flex flex-wrap items-center gap-4 pr-44">
+      <div className="rounded-2xl bg-cyan-100 p-4 text-cyan-700">
+        <Archive size={40} />
+      </div>
+      <h1 className="text-4xl font-black tracking-tight text-slate-800">House Projects</h1>
+      <button
+        type="button"
+        onClick={onAdd}
+        className="flex items-center gap-2 rounded-full border border-white/80 bg-white/80 px-5 py-2.5 text-sm font-bold text-slate-800 shadow-[0_8px_30px_rgb(0,0,0,0.12)] backdrop-blur-xl transition hover:bg-cyan-600 hover:text-white"
+      >
+        <Plus size={18} />
+        New project
+      </button>
+    </div>
+  );
+}
+
+function AddProjectModal({
+  busy,
+  onClose,
+  onSave,
+}: {
+  busy: boolean;
+  onClose: () => void;
+  onSave: (input: {
+    title: string;
+    kind: HouseProjectKind;
+    details: string;
+    cost: number | null;
+    notes: string | null;
+  }) => void;
+}) {
   const [title, setTitle] = useState("");
   const [kind, setKind] = useState<HouseProjectKind>("repair");
   const [details, setDetails] = useState("");
@@ -99,14 +135,13 @@ function AddProjectModal({ onClose, onSave }: { onClose: () => void; onSave: () 
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    saveHouseProject({
+    onSave({
       title: title.trim() || "Untitled project",
       kind,
       details: details.trim() || "",
       cost: cost.trim() ? parseFloat(cost) : null,
       notes: notes.trim() || null,
     });
-    onSave();
   };
 
   return (
@@ -172,8 +207,12 @@ function AddProjectModal({ onClose, onSave }: { onClose: () => void; onSave: () 
             >
               Cancel
             </button>
-            <button type="submit" className="flex-1 rounded-full bg-cyan-600 py-3 font-bold text-white hover:bg-cyan-700">
-              Save project
+            <button
+              type="submit"
+              disabled={busy}
+              className="flex-1 rounded-full bg-cyan-600 py-3 font-bold text-white hover:bg-cyan-700 disabled:opacity-50"
+            >
+              {busy ? "Saving…" : "Save project"}
             </button>
           </div>
         </form>
