@@ -16,6 +16,7 @@ import { VaultRoom } from "./rooms/vault/VaultRoom";
 import { HomeCameraCapture } from "./components/HomeCameraCapture";
 import { PhotoKindBubbles } from "./components/PhotoKindBubbles";
 import type { ImagePhotoKind } from "../types";
+import { useStandaloneApp } from "./hooks/useStandaloneApp";
 import {
   Wifi,
   ChefHat,
@@ -395,6 +396,7 @@ function StubRoom({ title, icon: Icon, desc }: { title: string; icon: LucideIcon
 }
 
 export default function EerdmansHub() {
+  useStandaloneApp();
   const [activeRoom, setActiveRoom] = useState<RoomId | null>(null);
   const [showPhotoKindPick, setShowPhotoKindPick] = useState(false);
   const [captureKind, setCaptureKind] = useState<ImagePhotoKind | null>(null);
@@ -430,14 +432,14 @@ export default function EerdmansHub() {
           />
         );
       case "calendar":
-        return <CalendarRoom />;
+        return <CalendarRoom onGoBack={() => setActiveRoom(null)} />;
       default:
         return null;
     }
   };
 
   return (
-    <div className="w-full h-screen overflow-hidden bg-slate-50 text-slate-800 font-sans selection:bg-cyan-200 relative">
+    <div className="hub-shell relative h-screen w-full overflow-hidden bg-slate-50 font-sans text-slate-800 selection:bg-cyan-200">
       {/* Ambient Glass Refraction Orbs */}
       <div className="absolute top-[-10%] left-[-10%] w-[40vw] h-[40vw] bg-cyan-400/30 rounded-full blur-[120px] pointer-events-none z-0"></div>
       <div className="absolute bottom-[-10%] right-[-10%] w-[40vw] h-[40vw] bg-rose-400/30 rounded-full blur-[120px] pointer-events-none z-0"></div>
@@ -445,18 +447,20 @@ export default function EerdmansHub() {
 
       <div className="relative w-full h-full z-10 flex flex-col">
         {activeRoom ? (
-          <div className="relative min-h-full w-full overflow-y-auto bg-white/20 backdrop-blur-lg">
-            {/* Go Back Button */}
-            <div className="absolute top-8 right-8 z-50">
-              <button
-                onClick={() => setActiveRoom(null)}
-                className="bg-white/80 hover:bg-cyan-600 hover:text-white text-slate-800 font-bold px-6 py-3 rounded-full transition-all duration-300 flex items-center gap-2 shadow-[0_8px_30px_rgb(0,0,0,0.12)] backdrop-blur-xl border border-white/80"
-              >
-                <ChevronLeft size={20} />
-                Go Back
-              </button>
-            </div>
-            {renderRoom()}
+          <div className="hub-room-viewport flex h-full w-full flex-col bg-white/20 backdrop-blur-lg">
+            {activeRoom !== "calendar" && (
+              <header className="hub-room-bar flex shrink-0 items-center border-b border-white/50 bg-white/40 px-3 py-2 backdrop-blur-md sm:px-4">
+                <button
+                  type="button"
+                  onClick={() => setActiveRoom(null)}
+                  className="flex items-center gap-1.5 rounded-full border border-white/80 bg-white/80 px-3 py-1.5 text-sm font-bold text-slate-800 shadow-sm backdrop-blur-xl transition-all hover:bg-cyan-600 hover:text-white sm:gap-2 sm:px-4 sm:py-2"
+                >
+                  <ChevronLeft size={18} className="shrink-0" />
+                  Go Back
+                </button>
+              </header>
+            )}
+            <div className="hub-room-scroll min-h-0 flex-1">{renderRoom()}</div>
           </div>
         ) : (
           <>

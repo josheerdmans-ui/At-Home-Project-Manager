@@ -10,6 +10,9 @@ create table public.family_calendar_events (
   event_time text,
   category text not null default 'general'
     check (category in ('general', 'meal', 'activity', 'appointment')),
+  event_kind text not null default 'regular'
+    check (event_kind in ('regular', 'important', 'birthday', 'school')),
+  color_class text not null default 'bg-cyan-100 text-cyan-700',
   notes text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()

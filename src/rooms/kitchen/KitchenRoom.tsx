@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { ChefHat, Clock, Flame, Heart, Pencil, Plus, Trash2, X } from "lucide-react";
+import { MealImage } from "../../components/MealImage";
 
 const FAMILY_MEMBERS = ["Dad", "Mom", "Mila", "Cora", "Max"] as const;
 type FamilyMember = (typeof FAMILY_MEMBERS)[number];
@@ -182,8 +183,8 @@ export function KitchenRoom() {
   };
 
   return (
-    <div className="relative z-10 min-h-full w-full p-12 pb-24">
-      <div className="mb-10 flex flex-col gap-6 pr-44 md:flex-row md:items-end md:justify-between">
+    <div className="relative z-10 flex h-full w-full flex-col overflow-hidden p-3 sm:p-4">
+      <div className="mb-3 flex shrink-0 flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div className="flex items-center gap-4">
           <div className="rounded-2xl border border-white/50 bg-cyan-100 p-4 text-cyan-700 shadow-inner">
             <ChefHat size={40} />
@@ -202,7 +203,8 @@ export function KitchenRoom() {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 pb-12 md:grid-cols-2 lg:grid-cols-3">
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="grid grid-cols-1 gap-4 pb-4 md:grid-cols-2 lg:grid-cols-3">
         {meals.map((meal) => (
           <div
             key={meal.id}
@@ -215,12 +217,11 @@ export function KitchenRoom() {
                 setSelectedMeal(meal);
               }
             }}
-            className="group cursor-pointer rounded-3xl border border-white/80 bg-white/50 p-6 shadow-[0_8px_30px_rgb(0,0,0,0.06)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1.5 hover:bg-white/80 hover:shadow-[0_20px_40px_rgb(0,0,0,0.12)]"
+            className="group cursor-pointer overflow-hidden rounded-3xl border border-white/80 bg-white/50 shadow-[0_8px_30px_rgb(0,0,0,0.06)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:bg-white/80 hover:shadow-[0_20px_40px_rgb(0,0,0,0.12)]"
           >
-            <div className="mb-6 flex items-start justify-between">
-              <div className="rounded-2xl border border-white/80 bg-white/60 p-3 text-cyan-700 shadow-sm transition-colors group-hover:bg-cyan-100">
-                <ChefHat size={28} />
-              </div>
+            <MealImage mealName={meal.name} className="h-36 w-full" iconSize={36} />
+            <div className="p-5">
+            <div className="mb-3 flex items-start justify-end">
               <div className="flex -space-x-2">
                 {meal.likedBy.map((member) => (
                   <div
@@ -233,7 +234,7 @@ export function KitchenRoom() {
                 ))}
               </div>
             </div>
-            <h3 className="mb-3 text-2xl font-black text-slate-800 transition-colors group-hover:text-cyan-700">
+            <h3 className="mb-3 text-xl font-black text-slate-800 transition-colors group-hover:text-cyan-700 sm:text-2xl">
               {meal.name}
             </h3>
             <div className="flex items-center gap-4 text-sm font-semibold text-slate-500">
@@ -244,8 +245,10 @@ export function KitchenRoom() {
                 <Flame size={16} className="text-orange-500" /> {meal.cookTime}
               </div>
             </div>
+            </div>
           </div>
         ))}
+        </div>
       </div>
 
       {selectedMeal && (
@@ -256,6 +259,7 @@ export function KitchenRoom() {
             role="presentation"
           />
           <div className="relative flex max-h-full w-full max-w-4xl flex-col overflow-hidden rounded-[2rem] border border-white bg-white/80 shadow-2xl backdrop-blur-3xl">
+            <MealImage mealName={selectedMeal.name} className="h-48 w-full shrink-0" iconSize={48} />
             <div className="relative flex items-start justify-between border-b border-white/50 bg-white/40 px-8 py-8 md:px-10">
               <div className="pr-12">
                 <h2 className="mb-4 text-4xl font-black tracking-tight text-slate-800">

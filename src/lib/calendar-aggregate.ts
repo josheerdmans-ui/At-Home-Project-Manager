@@ -15,6 +15,9 @@ export type CalendarEvent = {
   kind: string;
   editable: boolean;
   familyEventId?: string;
+  colorClass: string;
+  eventKind?: string;
+  isImportant?: boolean;
 };
 
 export function toDateKey(d: Date): string {
@@ -32,11 +35,15 @@ export function parseDateKey(key: string): Date {
 function pushIfDate(
   out: CalendarEvent[],
   date: string | null | undefined,
-  event: Omit<CalendarEvent, "date">,
+  event: Omit<CalendarEvent, "date" | "colorClass"> & { colorClass?: string },
 ) {
   if (!date) return;
   const key = date.slice(0, 10);
-  out.push({ ...event, date: key });
+  out.push({
+    ...event,
+    date: key,
+    colorClass: event.colorClass ?? SOURCE_STYLES[event.source].chip,
+  });
 }
 
 export function collectGarageCalendarEvents(vehicles: VehicleWithIssues[]): CalendarEvent[] {
@@ -107,6 +114,9 @@ export function familyEventsToCalendar(events: FamilyCalendarEvent[]): CalendarE
     kind: e.category,
     editable: true,
     familyEventId: e.id,
+    colorClass: e.colorClass,
+    eventKind: e.eventKind,
+    isImportant: e.eventKind === "important",
   }));
 }
 

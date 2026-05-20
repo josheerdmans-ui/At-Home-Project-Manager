@@ -1,0 +1,10 @@
+{
+  "name": "Eerdmans Hub",
+  "short_name": "Eerdmans Hub",
+  "description": "Family home hub",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#0891b2",
+  "orientation": "any"
+}

@@ -8,13 +8,16 @@ export default defineConfig({
     react(),
     tailwindcss(),
     legacy({
-      // iPad Mini 2 and similar devices cap at iOS 12 / Safari 12
+      // iPad Mini 2 caps at iOS 12 / Safari 12. Safari 12 supports <script type="module">
+      // but not modern syntax — ship only the legacy SystemJS bundle (no modern chunk).
       targets: ["iOS >= 12", "Safari >= 12"],
-      modernTargets: ["iOS >= 12", "Safari >= 12"],
-      additionalLegacyPolyfills: ["regenerator-runtime/runtime", "core-js/proposals/global-this"],
+      renderModernChunks: false,
+      additionalLegacyPolyfills: [
+        "regenerator-runtime/runtime",
+        "core-js/proposals/global-this",
+        "core-js/stable/url",
+        "core-js/stable/url-search-params",
+      ],
     }),
   ],
-  build: {
-    target: "es2015",
-  },
 });

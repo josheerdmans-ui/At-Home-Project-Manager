@@ -4,3 +4,42 @@
 .mirror {
   transform: scaleX(-1);
 }
+
+/* PWA / Add to Home Screen — lock viewport, no page scroll */
+html.standalone-app,
+html.standalone-app body,
+html.standalone-app #root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+  position: fixed;
+  inset: 0;
+}
+
+html.standalone-app .hub-shell {
+  height: 100%;
+  overflow: hidden;
+}
+
+.hub-room-viewport {
+  height: 100%;
+  overflow: hidden;
+}
+
+.hub-room-bar {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+html.standalone-app .hub-room-viewport {
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+html.standalone-app .hub-room-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}

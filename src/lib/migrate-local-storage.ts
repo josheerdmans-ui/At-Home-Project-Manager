@@ -61,6 +61,8 @@ export async function migrateCalendarEventsFromLocalStorage(): Promise<void> {
     event_date: e.date,
     event_time: e.time,
     category: e.category as FamilyEventCategory,
+    event_kind: e.eventKind ?? "regular",
+    color_class: e.colorClass ?? "bg-cyan-100 text-cyan-700",
     notes: e.notes,
     created_at: e.createdAt,
     updated_at: e.updatedAt,

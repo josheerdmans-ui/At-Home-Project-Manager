@@ -4,19 +4,13 @@ import type {
   FamilyCalendarEventRow,
   FamilyCalendarEventUpdate,
 } from "../../../types";
-import type { FamilyCalendarEvent } from "../../lib/calendar-events-store";
+import type { FamilyCalendarEvent, FamilyEventKind } from "../../lib/calendar-events-store";
 import { migrateCalendarEventsFromLocalStorage } from "../../lib/migrate-local-storage";
 import { supabase } from "../../lib/supabase";
+import { EVENT_COLORS } from "./calendar-ui";
 
 const FAMILY_CALENDAR_KEY = ["family_calendar_events"] as const;
-
-export function isMissingFamilyCalendarTableError(message: string) {
-  return (
-    message.includes("Could not find the table") ||
-    (message.includes("relation") && message.includes("does not exist")) ||
-    message.includes("family_calendar_events")
-  );
-}
+const DEFAULT_COLOR = EVENT_COLORS[2]!.value;
 
 function rowToEvent(row: FamilyCalendarEventRow): FamilyCalendarEvent {
   return {
@@ -25,10 +19,20 @@ function rowToEvent(row: FamilyCalendarEventRow): FamilyCalendarEvent {
     date: row.event_date,
     time: row.event_time,
     category: row.category,
+    eventKind: row.event_kind ?? "regular",
+    colorClass: row.color_class ?? DEFAULT_COLOR,
     notes: row.notes,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+export function isMissingFamilyCalendarTableError(message: string) {
+  return (
+    message.includes("Could not find the table") ||
+    (message.includes("relation") && message.includes("does not exist")) ||
+    message.includes("family_calendar_events")
+  );
 }
 
 async function fetchFamilyCalendarEvents(): Promise<FamilyCalendarEvent[]> {
@@ -61,21 +65,38 @@ export function useFamilyCalendarEvents() {
   });
 }
 
+export type SaveFamilyEventInput = {
+  id?: string;
+  title: string;
+  date: string;
+  time: string | null;
+  eventKind: FamilyEventKind;
+  colorClass: string;
+  notes?: string | null;
+};
+
 export function useFamilyCalendarEventsMutations() {
   const qc = useQueryClient();
   const invalidate = () => qc.invalidateQueries({ queryKey: FAMILY_CALENDAR_KEY });
 
   const saveEvent = useMutation({
-    mutationFn: async (
-      input: Omit<FamilyCalendarEvent, "id" | "createdAt" | "updatedAt"> & { id?: string },
-    ) => {
+    mutationFn: async (input: SaveFamilyEventInput) => {
+      const category =
+        input.eventKind === "school"
+          ? "activity"
+          : input.eventKind === "birthday"
+            ? "general"
+            : "general";
+
       if (input.id) {
         const row: FamilyCalendarEventUpdate = {
           title: input.title,
           event_date: input.date,
           event_time: input.time,
-          category: input.category,
-          notes: input.notes,
+          category,
+          event_kind: input.eventKind,
+          color_class: input.colorClass,
+          notes: input.notes ?? null,
         };
         const { data, error } = await supabase
           .from("family_calendar_events")
@@ -91,8 +112,10 @@ export function useFamilyCalendarEventsMutations() {
         title: input.title,
         event_date: input.date,
         event_time: input.time,
-        category: input.category,
-        notes: input.notes,
+        category,
+        event_kind: input.eventKind,
+        color_class: input.colorClass,
+        notes: input.notes ?? null,
       };
       const { data, error } = await supabase
         .from("family_calendar_events")

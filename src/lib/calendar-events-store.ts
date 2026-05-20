@@ -1,6 +1,7 @@
 /** Family calendar event types — data lives in Supabase (`family_calendar_events` table). */
 
 export type FamilyEventCategory = "general" | "meal" | "activity" | "appointment";
+export type FamilyEventKind = "regular" | "important" | "birthday" | "school";
 
 export type FamilyCalendarEvent = {
   id: string;
@@ -8,6 +9,8 @@ export type FamilyCalendarEvent = {
   date: string;
   time: string | null;
   category: FamilyEventCategory;
+  eventKind: FamilyEventKind;
+  colorClass: string;
   notes: string | null;
   createdAt: string;
   updatedAt: string;

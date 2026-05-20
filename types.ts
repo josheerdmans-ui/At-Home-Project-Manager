@@ -13,6 +13,7 @@ export type VaultDocType = "warranty" | "house_document" | "repair_note" | "remo
 export type ImagePhotoKind = "memory" | "person";
 export type HouseProjectKind = "repair" | "remodel" | "general";
 export type FamilyEventCategory = "general" | "meal" | "activity" | "appointment";
+export type FamilyEventKind = "regular" | "important" | "birthday" | "school";
 
 export type VaultExtraFile = {
   path: string;
@@ -257,6 +258,8 @@ export interface Database {
           event_date: string;
           event_time: string | null;
           category: FamilyEventCategory;
+          event_kind: FamilyEventKind;
+          color_class: string;
           notes: string | null;
           created_at: string;
           updated_at: string;
@@ -267,6 +270,8 @@ export interface Database {
           event_date: string;
           event_time?: string | null;
           category?: FamilyEventCategory;
+          event_kind?: FamilyEventKind;
+          color_class?: string;
           notes?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -277,6 +282,8 @@ export interface Database {
           event_date?: string;
           event_time?: string | null;
           category?: FamilyEventCategory;
+          event_kind?: FamilyEventKind;
+          color_class?: string;
           notes?: string | null;
           created_at?: string;
           updated_at?: string;

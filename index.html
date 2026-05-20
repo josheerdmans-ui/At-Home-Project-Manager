@@ -2,7 +2,15 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1, user-scalable=no"
+    />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="theme-color" content="#0891b2" />
+    <link rel="manifest" href="/manifest.webmanifest" />
     <title>Eerdmans Hub</title>
     <style>
       #boot-error {
@@ -62,9 +70,13 @@
         }
 
         window.addEventListener("error", function (e) {
+          var detail = e.message || "Script error";
+          if (e.filename) detail += " (" + e.filename.split("/").pop();
+          if (e.lineno) detail += ":" + e.lineno;
+          if (e.filename) detail += ")";
           show(
             "This browser may be too old to run the app. Try a newer device, or update Safari if you can.",
-            e.message || "Script error"
+            detail
           );
         });
 
