@@ -447,7 +447,9 @@ export default function EerdmansHub() {
 
       <div className="relative w-full h-full z-10 flex flex-col">
         {activeRoom ? (
-          <div className="hub-room-viewport flex h-full w-full flex-col bg-white/20 backdrop-blur-lg">
+          <div
+            className={`hub-room-viewport flex h-full w-full flex-col bg-white/20 backdrop-blur-lg${activeRoom === "calendar" ? " hub-room-viewport--calendar" : ""}`}
+          >
             {activeRoom !== "calendar" && (
               <header className="hub-room-bar flex shrink-0 items-center border-b border-white/50 bg-white/40 px-3 py-2 backdrop-blur-md sm:px-4">
                 <button

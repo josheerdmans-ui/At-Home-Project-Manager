@@ -25,21 +25,42 @@ html.standalone-app .hub-shell {
 .hub-room-viewport {
   height: 100%;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .hub-room-bar {
   padding-top: env(safe-area-inset-top, 0px);
 }
 
-html.standalone-app .hub-room-viewport {
-  height: 100%;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-html.standalone-app .hub-room-scroll {
+.hub-room-scroll {
   flex: 1;
   min-height: 0;
+  overflow: hidden;
+}
+
+/* Calendar — one screen, no scroll; grid stretches to available height */
+.calendar-room {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+.calendar-room .calendar-card {
+  min-height: 0;
+}
+
+.calendar-room .calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-template-rows: repeat(6, minmax(0, 1fr));
+  min-height: 0;
+  overflow: hidden;
+}
+
+.calendar-room .calendar-day-cell {
+  min-height: 0;
+  min-width: 0;
   overflow: hidden;
 }

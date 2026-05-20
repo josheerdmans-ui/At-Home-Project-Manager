@@ -75,7 +75,7 @@ function DayEventChip({
           onEdit(event);
         }}
         title={tip}
-        className={`truncate rounded-md px-2 py-1.5 text-left text-xs font-medium transition hover:brightness-95 ${chipClass}`}
+        className={`shrink truncate rounded px-1 py-0.5 text-left text-[9px] font-medium leading-tight transition hover:brightness-95 sm:px-1.5 sm:py-1 sm:text-[10px] ${chipClass}`}
       >
         {event.title}
       </button>
@@ -83,7 +83,7 @@ function DayEventChip({
   }
 
   return (
-    <div title={tip} className={`truncate rounded-md px-2 py-1.5 text-xs font-medium ${chipClass}`}>
+    <div title={tip} className={`shrink truncate rounded px-1 py-0.5 text-[9px] font-medium leading-tight sm:px-1.5 sm:py-1 sm:text-[10px] ${chipClass}`}>
       {event.title}
     </div>
   );
@@ -212,19 +212,19 @@ export function CalendarRoom({ onGoBack }: CalendarRoomProps) {
   }
 
   return (
-    <div className="relative z-10 flex h-full w-full flex-col overflow-hidden p-2 sm:p-4">
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[2rem] border border-white bg-white/90 shadow-xl backdrop-blur-md">
+    <div className="calendar-room relative z-10 flex h-full min-h-0 w-full flex-col overflow-hidden p-1 sm:p-2">
+      <div className="calendar-card flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-white bg-white/90 shadow-xl backdrop-blur-md sm:rounded-[2rem]">
         {/* Calendar Header */}
-        <div className="flex shrink-0 items-center justify-between gap-4 overflow-x-auto border-b border-slate-100 p-4 md:px-8 md:py-6">
-          <div className="flex shrink-0 items-center gap-2 whitespace-nowrap md:gap-4">
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-2 py-2 sm:gap-3 sm:px-4 sm:py-3">
+          <div className="flex min-w-0 shrink items-center gap-1.5 sm:gap-2">
             {onGoBack && <GoBackButton onClick={onGoBack} />}
-            <h1 className="text-2xl font-extrabold tracking-tight text-slate-800 md:text-3xl lg:text-4xl">
+            <h1 className="truncate text-lg font-extrabold tracking-tight text-slate-800 sm:text-2xl md:text-3xl">
               {MONTHS[month]}{" "}
               <span className="font-medium text-slate-400">{year}</span>
             </h1>
           </div>
 
-          <div className="flex shrink-0 items-center gap-2 whitespace-nowrap md:gap-4">
+          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
             <div className="flex items-center rounded-full border border-slate-200 bg-slate-50 p-1">
               <button
                 type="button"
@@ -268,7 +268,7 @@ export function CalendarRoom({ onGoBack }: CalendarRoomProps) {
           {WEEKDAYS.map((day) => (
             <div
               key={day}
-              className="py-3 text-center text-xs font-bold tracking-wider text-slate-400 md:py-4"
+              className="py-1 text-center text-[10px] font-bold tracking-wider text-slate-400 sm:py-1.5 sm:text-xs"
             >
               {day}
             </div>
@@ -276,7 +276,7 @@ export function CalendarRoom({ onGoBack }: CalendarRoomProps) {
         </div>
 
         {/* Calendar Grid */}
-        <div className="grid min-h-0 flex-1 grid-cols-7 gap-px overflow-auto border-b border-slate-100 bg-slate-100">
+        <div className="calendar-grid min-h-0 flex-1 gap-px overflow-hidden border-b border-slate-100 bg-slate-100">
           {calendarDays.map((item, index) => {
             const dayEvents = eventsForDate(allEvents, item.dateKey);
             const isSelected = isSameDate(item.date, selectedDate);
@@ -308,14 +308,14 @@ export function CalendarRoom({ onGoBack }: CalendarRoomProps) {
                     setSelectedDate(item.date);
                   }
                 }}
-                className={`group relative min-h-[72px] cursor-pointer p-2 transition-colors md:min-h-[100px] md:p-3 lg:min-h-[140px] ${bgColorClass} ${
+                className={`calendar-day-cell group relative flex min-h-0 cursor-pointer flex-col p-0.5 transition-colors sm:p-1 ${bgColorClass} ${
                   !item.isCurrentMonth ? "text-slate-300" : "text-slate-700"
                 }`}
               >
-                <div className="flex items-start justify-between">
+                <div className="flex shrink-0 items-start justify-between">
                   <div className="flex items-center gap-1.5">
                     <span
-                      className={`flex h-7 w-7 items-center justify-center rounded-full text-sm font-semibold md:h-8 md:w-8 ${
+                      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold sm:h-6 sm:w-6 sm:text-xs md:h-7 md:w-7 md:text-sm ${
                         isSelected ? "bg-cyan-500 text-white shadow-md shadow-cyan-500/30" : ""
                       } ${
                         isTodayDate && !isSelected
@@ -325,7 +325,7 @@ export function CalendarRoom({ onGoBack }: CalendarRoomProps) {
                     >
                       {item.day}
                     </span>
-                    {hasBirthday && <Cake className="h-4 w-4 text-pink-500" />}
+                    {hasBirthday && <Cake className="h-3 w-3 shrink-0 text-pink-500 sm:h-3.5 sm:w-3.5" />}
                   </div>
 
                   <button
@@ -338,11 +338,11 @@ export function CalendarRoom({ onGoBack }: CalendarRoomProps) {
                     className="p-1 text-slate-300 opacity-0 transition-opacity hover:text-cyan-600 group-hover:opacity-100"
                     aria-label="Add event on this day"
                   >
-                    <Plus className="h-4 w-4" />
+                    <Plus className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                   </button>
                 </div>
 
-                <div className="mt-1.5 flex max-h-[56px] flex-col gap-1 overflow-hidden md:mt-2 md:max-h-[80px] md:gap-1.5">
+                <div className="mt-0.5 flex min-h-0 flex-1 flex-col gap-px overflow-hidden sm:mt-1 sm:gap-0.5">
                   {dayEvents.map((event) => (
                     <DayEventChip key={event.id} event={event} onEdit={openEdit} />
                   ))}
