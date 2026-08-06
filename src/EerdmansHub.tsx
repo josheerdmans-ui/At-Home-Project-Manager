@@ -13,6 +13,7 @@ import { KitchenRoom } from "./rooms/kitchen/KitchenRoom";
 import { CalendarRoom } from "./rooms/calendar/CalendarRoom";
 import { ImageVaultRoom } from "./rooms/image-vault/ImageVaultRoom";
 import { VaultRoom } from "./rooms/vault/VaultRoom";
+import { BankingRoom } from "./rooms/banking/BankingRoom";
 import { HomeCameraCapture } from "./components/HomeCameraCapture";
 import { PhotoKindBubbles } from "./components/PhotoKindBubbles";
 import type { ImagePhotoKind } from "../types";
@@ -29,6 +30,7 @@ import {
   ChevronLeft,
   Camera,
   Images,
+  Wallet,
 } from "lucide-react";
 
 // Schedule logic
@@ -84,7 +86,8 @@ type RoomId =
   | "image_vault"
   | "projects"
   | "roster"
-  | "calendar";
+  | "calendar"
+  | "banking";
 
 function TopNavigation({
   activeRoom,
@@ -100,6 +103,7 @@ function TopNavigation({
     { id: "vault" as const, icon: <Archive size={20} />, label: "Vault" },
     { id: "image_vault" as const, icon: <Images size={20} />, label: "Image" },
     { id: "projects" as const, icon: <Archive size={20} />, label: "Projects" },
+    { id: "banking" as const, icon: <Wallet size={20} />, label: "Banking" },
     { id: "roster" as const, icon: <Users size={20} />, label: "Roster" },
     { id: "calendar" as const, icon: <CalendarDays size={20} />, label: "Calendar" },
   ];
@@ -423,6 +427,8 @@ export default function EerdmansHub() {
         return <ImageVaultRoom />;
       case "projects":
         return <HouseProjectsRoom />;
+      case "banking":
+        return <BankingRoom />;
       case "roster":
         return (
           <StubRoom

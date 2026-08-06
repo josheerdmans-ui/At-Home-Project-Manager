@@ -290,6 +290,128 @@ export interface Database {
         };
         Relationships: [];
       };
+      banking_accounts: {
+        Row: {
+          id: string;
+          plaid_account_id: string;
+          item_row_id: string;
+          name: string;
+          official_name: string | null;
+          type: string;
+          subtype: string | null;
+          mask: string | null;
+          current_balance: number | null;
+          available_balance: number | null;
+          iso_currency_code: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          plaid_account_id: string;
+          item_row_id: string;
+          name: string;
+          official_name?: string | null;
+          type: string;
+          subtype?: string | null;
+          mask?: string | null;
+          current_balance?: number | null;
+          available_balance?: number | null;
+          iso_currency_code?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          plaid_account_id?: string;
+          item_row_id?: string;
+          name?: string;
+          official_name?: string | null;
+          type?: string;
+          subtype?: string | null;
+          mask?: string | null;
+          current_balance?: number | null;
+          available_balance?: number | null;
+          iso_currency_code?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      banking_transactions: {
+        Row: {
+          id: string;
+          plaid_transaction_id: string;
+          account_id: string;
+          amount: number;
+          date: string;
+          name: string;
+          merchant_name: string | null;
+          primary_category: string;
+          pending: boolean;
+          iso_currency_code: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          plaid_transaction_id: string;
+          account_id: string;
+          amount: number;
+          date: string;
+          name: string;
+          merchant_name?: string | null;
+          primary_category?: string;
+          pending?: boolean;
+          iso_currency_code?: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          plaid_transaction_id?: string;
+          account_id?: string;
+          amount?: number;
+          date?: string;
+          name?: string;
+          merchant_name?: string | null;
+          primary_category?: string;
+          pending?: boolean;
+          iso_currency_code?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "banking_transactions_account_id_fkey";
+            columns: ["account_id"];
+            isOneToOne: false;
+            referencedRelation: "banking_accounts";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      banking_settings: {
+        Row: {
+          id: number;
+          investments_amount: number;
+          last_synced_at: string | null;
+          connection_count: number;
+          updated_at: string;
+        };
+        Insert: {
+          id?: number;
+          investments_amount?: number;
+          last_synced_at?: string | null;
+          connection_count?: number;
+          updated_at?: string;
+        };
+        Update: {
+          id?: number;
+          investments_amount?: number;
+          last_synced_at?: string | null;
+          connection_count?: number;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -317,3 +439,7 @@ export type HouseProjectUpdate = Tables["house_projects"]["Update"];
 export type FamilyCalendarEventRow = Tables["family_calendar_events"]["Row"];
 export type FamilyCalendarEventInsert = Tables["family_calendar_events"]["Insert"];
 export type FamilyCalendarEventUpdate = Tables["family_calendar_events"]["Update"];
+export type BankingAccountRow = Tables["banking_accounts"]["Row"];
+export type BankingTransactionRow = Tables["banking_transactions"]["Row"];
+export type BankingSettingsRow = Tables["banking_settings"]["Row"];
+export type BankingSettingsUpdate = Tables["banking_settings"]["Update"];

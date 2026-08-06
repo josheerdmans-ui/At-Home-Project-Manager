@@ -145,9 +145,37 @@ To use one shared database for everyone, keep the same `VITE_SUPABASE_*` values 
 
 ---
 
+## Banking (Plaid)
+
+For the **Banking** room auto-sync:
+
+1. Apply the banking SQL (`npm run db:push` or Banking room **Copy setup SQL**).
+2. In [Plaid Dashboard](https://dashboard.plaid.com) copy **client_id** and **secret** (Trial/production).
+3. Supabase → **Project Settings** → **Edge Functions** → **Secrets** (or CLI):
+
+   | Secret | Value |
+   |--------|--------|
+   | `PLAID_CLIENT_ID` | from Plaid |
+   | `PLAID_SECRET` | production/sandbox secret matching env |
+   | `PLAID_ENV` | `production` (Trial) or `sandbox` for fake banks |
+
+4. Deploy functions:
+
+```powershell
+npx supabase functions deploy banking-create-link-token
+npx supabase functions deploy banking-exchange-public-token
+npx supabase functions deploy banking-sync
+```
+
+`SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` are provided automatically to Edge Functions. **Never** put the Plaid secret in Vite / Vercel `VITE_*` vars.
+
+Plaid access tokens are stored in `banking_plaid_items` with **no client RLS policies** (service role only).
+
+---
+
 ## Security note
 
-Database RLS policies are open for family development; the **hub login screen** is the main gate. Before exposing the app broadly on the internet, tighten RLS to `authenticated` users only.
+Database RLS policies are open for family development; the **hub login screen** is the main gate. Before exposing the app broadly on the internet, tighten RLS to `authenticated` users only. Plaid tokens are never readable from the browser.
 
 ---
 
