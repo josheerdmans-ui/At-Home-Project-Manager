@@ -66,7 +66,7 @@ You will set **URL configuration** after Vercel gives you a URL (step 4).
 
 ## 3. Push to GitHub
 
-Repo: `https://github.com/hardtopixjosh-concrete/At-Home-Project-Manager`
+Repo: `https://github.com/josheerdmans-ui/At-Home-Project-Manager`
 
 ```powershell
 cd "C:\Users\hardt\OneDrive\Documents\At Home Project Manager"

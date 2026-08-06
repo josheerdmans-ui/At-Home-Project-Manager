@@ -12,7 +12,7 @@ See [PROJECT_SETUP.md](PROJECT_SETUP.md) for auth and database setup.
 
 ## Deploy online
 
-**[DEPLOY.md](DEPLOY.md)** — Supabase schema + Vercel (GitHub: `hardtopixjosh-concrete/At-Home-Project-Manager`).
+**[DEPLOY.md](DEPLOY.md)** — Supabase schema + Vercel (GitHub: `josheerdmans-ui/At-Home-Project-Manager`).
 
 ## Resetting Supabase
 
