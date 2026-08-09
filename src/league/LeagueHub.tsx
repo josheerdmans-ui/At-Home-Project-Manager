@@ -219,6 +219,9 @@ export function LeagueHub({ onBackToChooser }: Props) {
         me: `${bundle.me.account.gameName}#${bundle.me.account.tagLine}`,
         friend: `${bundle.friend.account.gameName}#${bundle.friend.account.tagLine}`,
       };
+      processed.rawMatches = bundle.matches;
+      processed.mePuuid = bundle.me.account.puuid;
+      processed.friendPuuid = bundle.friend.account.puuid;
 
       setData(processed);
       setHasLoaded(true);

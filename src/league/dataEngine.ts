@@ -113,10 +113,12 @@ export const processData = (matches, timelines, mePuuid, friendPuuid) => {
            queueId: match.info.queueId,
            gameDuration: match.info.gameDuration,
            gameStartTimestamp: match.info.gameStartTimestamp,
+           teams: match.info.teams || [],
            me,
            friend: fr,
            allies: p.filter((x) => x.teamId === me.teamId),
            enemies: p.filter((x) => x.teamId !== me.teamId),
+           allParticipants: p,
            enemyAdc: enemyAdc || null,
            enemySupp: enemySupp || null,
          };
