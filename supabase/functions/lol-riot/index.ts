@@ -14,16 +14,13 @@ type AccountDto = {
 };
 
 type SummonerDto = {
-  id: string;
-  accountId: string;
+  id?: string;
   puuid: string;
   profileIconId: number;
-  revisionDate: number;
   summonerLevel: number;
 };
 
 type LeagueEntryDto = {
-  leagueId: string;
   queueType: string;
   tier: string;
   rank: string;
@@ -32,29 +29,20 @@ type LeagueEntryDto = {
   losses: number;
 };
 
-type MatchDto = {
-  metadata: { matchId: string };
-  info: {
-    gameMode: string;
-    gameDuration: number;
-    queueId: number;
-    participants: Array<{
-      puuid: string;
-      championName: string;
-      kills: number;
-      deaths: number;
-      assists: number;
-      win: boolean;
-      summonerName?: string;
-    }>;
-  };
+type MasteryDto = {
+  championId: number;
+  championPoints: number;
+  championLevel: number;
 };
 
 type LookupBody = {
+  action?: "lookup" | "duo";
   riotId?: string;
+  friendRiotId?: string;
   gameName?: string;
   tagLine?: string;
   platform?: string;
+  matchCount?: number;
 };
 
 function parseRiotId(input: string): { gameName: string; tagLine: string } | null {
@@ -84,6 +72,32 @@ const PLATFORMS = new Set([
   "vn2",
 ]);
 
+const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+async function fetchAccount(
+  regionalHost: string,
+  gameName: string,
+  tagLine: string,
+): Promise<AccountDto> {
+  return riotGet<AccountDto>(
+    regionalHost,
+    `/riot/account/v1/accounts/by-riot-id/${encodeURIComponent(gameName)}/${encodeURIComponent(tagLine)}`,
+  );
+}
+
+async function soloRankString(platform: LolPlatform, puuid: string): Promise<string> {
+  try {
+    const ranked = await riotGet<LeagueEntryDto[]>(
+      platform,
+      `/lol/league/v4/entries/by-puuid/${encodeURIComponent(puuid)}`,
+    );
+    const solo = ranked.find((l) => l.queueType === "RANKED_SOLO_5x5");
+    return solo ? `${solo.tier} ${solo.rank}` : "Unranked";
+  } catch {
+    return "Unranked";
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -97,89 +111,183 @@ Deno.serve(async (req) => {
     }
 
     const body = (await req.json()) as LookupBody;
-    const fromCombined = body.riotId ? parseRiotId(body.riotId) : null;
-    const gameName = (fromCombined?.gameName ?? body.gameName ?? "").trim();
-    const tagLine = (fromCombined?.tagLine ?? body.tagLine ?? "").trim().replace(/^#/, "");
     const platformRaw = (body.platform ?? "na1").toLowerCase();
-
-    if (!gameName || !tagLine) {
-      return jsonResponse(
-        { error: "Enter a Riot ID like Name#TAG (example: Faker#KR1)" },
-        400,
-      );
-    }
     if (!PLATFORMS.has(platformRaw)) {
       return jsonResponse({ error: "Unsupported platform" }, 400);
     }
     const platform = platformRaw as LolPlatform;
     const regional = regionalForPlatform(platform);
+    const accountHost = regional === "sea" ? "asia" : regional;
 
-    const account = await riotGet<AccountDto>(
-      regional === "sea" ? "asia" : regional,
-      `/riot/account/v1/accounts/by-riot-id/${encodeURIComponent(gameName)}/${encodeURIComponent(tagLine)}`,
-    );
+    // --- Single-player lookup (kept for simple searches) ---
+    if ((body.action ?? "lookup") === "lookup") {
+      const fromCombined = body.riotId ? parseRiotId(body.riotId) : null;
+      const gameName = (fromCombined?.gameName ?? body.gameName ?? "").trim();
+      const tagLine = (fromCombined?.tagLine ?? body.tagLine ?? "").trim().replace(/^#/, "");
+      if (!gameName || !tagLine) {
+        return jsonResponse({ error: "Enter a Riot ID like Name#TAG" }, 400);
+      }
 
-    const summoner = await riotGet<SummonerDto>(
+      const account = await fetchAccount(accountHost, gameName, tagLine);
+      const summoner = await riotGet<SummonerDto>(
+        platform,
+        `/lol/summoner/v4/summoners/by-puuid/${encodeURIComponent(account.puuid)}`,
+      );
+      const ranked = await riotGet<LeagueEntryDto[]>(
+        platform,
+        `/lol/league/v4/entries/by-puuid/${encodeURIComponent(account.puuid)}`,
+      );
+      const matchIds = await riotGet<string[]>(
+        regional,
+        `/lol/match/v5/matches/by-puuid/${encodeURIComponent(account.puuid)}/ids?start=0&count=5`,
+      );
+
+      const recentMatches = [];
+      for (const matchId of matchIds.slice(0, 5)) {
+        try {
+          const match = await riotGet<{
+            info: {
+              gameMode: string;
+              gameDuration: number;
+              participants: Array<{
+                puuid: string;
+                championName: string;
+                kills: number;
+                deaths: number;
+                assists: number;
+                win: boolean;
+              }>;
+            };
+            metadata: { matchId: string };
+          }>(regional, `/lol/match/v5/matches/${encodeURIComponent(matchId)}`);
+          const me = match.info.participants.find((p) => p.puuid === account.puuid);
+          if (!me) continue;
+          recentMatches.push({
+            matchId,
+            championName: me.championName,
+            kills: me.kills,
+            deaths: me.deaths,
+            assists: me.assists,
+            win: me.win,
+            gameMode: match.info.gameMode,
+            gameDuration: match.info.gameDuration,
+          });
+        } catch {
+          /* skip */
+        }
+      }
+
+      return jsonResponse({
+        account,
+        summoner: {
+          level: summoner.summonerLevel,
+          profileIconId: summoner.profileIconId,
+        },
+        ranked,
+        recentMatches,
+        platform,
+      });
+    }
+
+    // --- Duo analytics bundle ---
+    const meParsed = body.riotId ? parseRiotId(body.riotId) : null;
+    const frParsed = body.friendRiotId ? parseRiotId(body.friendRiotId) : null;
+    if (!meParsed || !frParsed) {
+      return jsonResponse(
+        { error: "Provide both Riot IDs as Name#TAG (me + duo partner)" },
+        400,
+      );
+    }
+
+    const me = await fetchAccount(accountHost, meParsed.gameName, meParsed.tagLine);
+    await delay(200);
+    const fr = await fetchAccount(accountHost, frParsed.gameName, frParsed.tagLine);
+
+    const meSum = await riotGet<SummonerDto>(
       platform,
-      `/lol/summoner/v4/summoners/by-puuid/${encodeURIComponent(account.puuid)}`,
+      `/lol/summoner/v4/summoners/by-puuid/${encodeURIComponent(me.puuid)}`,
     );
-
-    const ranked = await riotGet<LeagueEntryDto[]>(
+    await delay(200);
+    const frSum = await riotGet<SummonerDto>(
       platform,
-      `/lol/league/v4/entries/by-puuid/${encodeURIComponent(account.puuid)}`,
+      `/lol/summoner/v4/summoners/by-puuid/${encodeURIComponent(fr.puuid)}`,
     );
 
-    const matchIds = await riotGet<string[]>(
+    const meRank = await soloRankString(platform, me.puuid);
+    await delay(200);
+    const frRank = await soloRankString(platform, fr.puuid);
+
+    let meMastery: MasteryDto[] = [];
+    let frMastery: MasteryDto[] = [];
+    try {
+      meMastery = await riotGet<MasteryDto[]>(
+        platform,
+        `/lol/champion-mastery/v4/champion-masteries/by-puuid/${encodeURIComponent(me.puuid)}/top?count=10`,
+      );
+    } catch {
+      meMastery = [];
+    }
+    await delay(200);
+    try {
+      frMastery = await riotGet<MasteryDto[]>(
+        platform,
+        `/lol/champion-mastery/v4/champion-masteries/by-puuid/${encodeURIComponent(fr.puuid)}/top?count=10`,
+      );
+    } catch {
+      frMastery = [];
+    }
+
+    const count = Math.min(Math.max(body.matchCount ?? 12, 5), 15);
+    const latestIds = await riotGet<string[]>(
       regional,
-      `/lol/match/v5/matches/by-puuid/${encodeURIComponent(account.puuid)}/ids?start=0&count=5`,
+      `/lol/match/v5/matches/by-puuid/${encodeURIComponent(me.puuid)}/ids?start=0&count=${count}`,
     );
+    if (!Array.isArray(latestIds)) {
+      return jsonResponse({ error: "Riot API busy fetching match list. Try again in a minute." }, 503);
+    }
 
-    const recentMatches: Array<{
-      matchId: string;
-      championName: string;
-      kills: number;
-      deaths: number;
-      assists: number;
-      win: boolean;
-      gameMode: string;
-      gameDuration: number;
-    }> = [];
+    const matches: unknown[] = [];
+    const timelines: unknown[] = [];
 
-    for (const matchId of matchIds) {
+    for (const id of latestIds) {
+      await delay(700);
       try {
-        const match = await riotGet<MatchDto>(
+        const matchData = await riotGet<unknown>(
           regional,
-          `/lol/match/v5/matches/${encodeURIComponent(matchId)}`,
+          `/lol/match/v5/matches/${encodeURIComponent(id)}`,
         );
-        const me = match.info.participants.find((p) => p.puuid === account.puuid);
-        if (!me) continue;
-        recentMatches.push({
-          matchId,
-          championName: me.championName,
-          kills: me.kills,
-          deaths: me.deaths,
-          assists: me.assists,
-          win: me.win,
-          gameMode: match.info.gameMode,
-          gameDuration: match.info.gameDuration,
-        });
+        await delay(700);
+        let timelineData: unknown = null;
+        try {
+          timelineData = await riotGet<unknown>(
+            regional,
+            `/lol/match/v5/matches/${encodeURIComponent(id)}/timeline`,
+          );
+        } catch {
+          timelineData = null;
+        }
+        matches.push(matchData);
+        timelines.push(timelineData);
       } catch {
-        // Skip individual match failures (rate limits / transient)
+        /* skip bad match */
       }
     }
 
     return jsonResponse({
-      account: {
-        puuid: account.puuid,
-        gameName: account.gameName,
-        tagLine: account.tagLine,
+      me: {
+        account: me,
+        summoner: { level: meSum.summonerLevel, profileIconId: meSum.profileIconId },
+        rank: meRank,
+        mastery: meMastery,
       },
-      summoner: {
-        level: summoner.summonerLevel,
-        profileIconId: summoner.profileIconId,
+      friend: {
+        account: fr,
+        summoner: { level: frSum.summonerLevel, profileIconId: frSum.profileIconId },
+        rank: frRank,
+        mastery: frMastery,
       },
-      ranked,
-      recentMatches,
+      matches,
+      timelines,
       platform,
     });
   } catch (err) {

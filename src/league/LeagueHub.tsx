@@ -1,9 +1,20 @@
-import { useState, type FormEvent } from "react";
-import { ArrowLeft, Search, Swords } from "lucide-react";
-import { useMutation } from "@tanstack/react-query";
+import { useEffect, useState, type FormEvent } from "react";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  Database,
+  Loader2,
+  Search,
+  Sparkles,
+} from "lucide-react";
 import { supabase } from "../lib/supabase";
+import { processData } from "./dataEngine";
+import OverviewTab from "./OverviewTab";
+import SynergyTab from "./SynergyTab";
+import ShameTab from "./ShameTab";
+import FutureTab from "./FutureTab";
 
-export type LolPlatform =
+type LolPlatform =
   | "na1"
   | "euw1"
   | "eun1"
@@ -19,34 +30,35 @@ export type LolPlatform =
   | "tw2"
   | "vn2";
 
-type RankedEntry = {
-  queueType: string;
-  tier: string;
-  rank: string;
-  leaguePoints: number;
-  wins: number;
-  losses: number;
+type MasteryRaw = {
+  championId: number;
+  championPoints: number;
+  championLevel: number;
 };
 
-type RecentMatch = {
-  matchId: string;
-  championName: string;
-  kills: number;
-  deaths: number;
-  assists: number;
-  win: boolean;
-  gameMode: string;
-  gameDuration: number;
-};
-
-type LookupResult = {
-  account: { puuid: string; gameName: string; tagLine: string };
-  summoner: { level: number; profileIconId: number };
-  ranked: RankedEntry[];
-  recentMatches: RecentMatch[];
+type DuoBundle = {
+  me: {
+    account: { puuid: string; gameName: string; tagLine: string };
+    summoner: { level: number; profileIconId: number };
+    rank: string;
+    mastery: MasteryRaw[];
+  };
+  friend: {
+    account: { puuid: string; gameName: string; tagLine: string };
+    summoner: { level: number; profileIconId: number };
+    rank: string;
+    mastery: MasteryRaw[];
+  };
+  matches: unknown[];
+  timelines: unknown[];
   platform: LolPlatform;
   error?: string;
 };
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type DuoProcessed = any;
+
+const STORAGE_KEY = "league-duo-ids-v1";
 
 const PLATFORMS: { id: LolPlatform; label: string }[] = [
   { id: "na1", label: "NA" },
@@ -65,245 +77,294 @@ const PLATFORMS: { id: LolPlatform; label: string }[] = [
   { id: "vn2", label: "VN" },
 ];
 
-function queueLabel(queueType: string): string {
-  if (queueType === "RANKED_SOLO_5x5") return "Solo/Duo";
-  if (queueType === "RANKED_FLEX_SR") return "Flex";
-  return queueType.replaceAll("_", " ");
+const DEFAULTS = {
+  meRiotId: "yellowcardfan69#6767",
+  friendRiotId: "NicklebackFan69#NA1",
+  platform: "na1" as LolPlatform,
+};
+
+function loadSaved() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return DEFAULTS;
+    const parsed = JSON.parse(raw) as Partial<typeof DEFAULTS>;
+    return {
+      meRiotId: parsed.meRiotId?.trim() || DEFAULTS.meRiotId,
+      friendRiotId: parsed.friendRiotId?.trim() || DEFAULTS.friendRiotId,
+      platform: (parsed.platform as LolPlatform) || DEFAULTS.platform,
+    };
+  } catch {
+    return DEFAULTS;
+  }
 }
 
-function formatDuration(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${m}:${String(s).padStart(2, "0")}`;
+async function mapMastery(raw: MasteryRaw[], version: string) {
+  try {
+    const champJson = (await (
+      await fetch(`https://ddragon.leagueoflegends.com/cdn/${version}/data/en_US/champion.json`)
+    ).json()) as {
+      data?: Record<string, { key: string; name: string; id: string }>;
+    };
+    const champMap: Record<string, { name: string; id: string }> = {};
+    if (champJson.data) {
+      for (const c of Object.values(champJson.data)) {
+        champMap[c.key] = { name: c.name, id: c.id };
+      }
+    }
+    return raw.slice(0, 3).map((m) => {
+      const cData = champMap[String(m.championId)] || { name: "Unknown", id: "Unknown" };
+      return {
+        name: cData.name,
+        id: cData.id,
+        points: m.championPoints,
+        level: m.championLevel,
+      };
+    });
+  } catch {
+    return [];
+  }
+}
+
+async function invokeErrorBody(error: unknown): Promise<string | null> {
+  const ctx = (error as { context?: Response })?.context;
+  if (!ctx || typeof ctx.json !== "function") return null;
+  try {
+    const body = (await ctx.json()) as { error?: string };
+    return body.error ?? null;
+  } catch {
+    return null;
+  }
 }
 
 type Props = {
   onBackToChooser: () => void;
 };
 
+type TabId = "overview" | "synergy" | "shame" | "future";
+
 export function LeagueHub({ onBackToChooser }: Props) {
-  const [riotId, setRiotId] = useState("");
-  const [platform, setPlatform] = useState<LolPlatform>("na1");
-  const [result, setResult] = useState<LookupResult | null>(null);
+  const saved = loadSaved();
+  const [meRiotId, setMeRiotId] = useState(saved.meRiotId);
+  const [friendRiotId, setFriendRiotId] = useState(saved.friendRiotId);
+  const [platform, setPlatform] = useState<LolPlatform>(saved.platform);
+  const [activeTab, setActiveTab] = useState<TabId>("overview");
+  const [data, setData] = useState<DuoProcessed | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [hasLoaded, setHasLoaded] = useState(false);
 
-  const lookup = useMutation({
-    mutationFn: async () => {
-      const trimmed = riotId.trim();
-      if (!trimmed.includes("#")) {
-        throw new Error("Use full Riot ID format: Name#TAG");
-      }
+  const runDuo = async () => {
+    setError(null);
+    setLoading(true);
+    setStatus("Finding summoners…");
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ meRiotId, friendRiotId, platform }),
+    );
 
-      const { data, error } = await supabase.functions.invoke<LookupResult>("lol-riot", {
-        body: {
-          riotId: trimmed,
-          platform,
+    try {
+      setStatus("Downloading duo matches from Riot (this can take ~30–60s)…");
+      const { data: bundle, error: fnError } = await supabase.functions.invoke<DuoBundle>(
+        "lol-riot",
+        {
+          body: {
+            action: "duo",
+            riotId: meRiotId.trim(),
+            friendRiotId: friendRiotId.trim(),
+            platform,
+            matchCount: 12,
+          },
         },
-      });
+      );
 
-      // On non-2xx, supabase-js still often puts JSON body in `data`
-      if (data?.error) throw new Error(data.error);
-
-      if (error) {
-        const msg = error.message || "Edge Function request failed";
-        // Try to read response body from FunctionsHttpError
-        const ctx = (error as { context?: Response }).context;
-        if (ctx && typeof ctx.json === "function") {
-          try {
-            const body = (await ctx.json()) as { error?: string };
-            if (body?.error) throw new Error(body.error);
-          } catch (inner) {
-            if (inner instanceof Error && inner.message !== msg) throw inner;
-          }
-        }
-        if (/failed to send a request/i.test(msg) || /fetch/i.test(msg)) {
-          throw new Error(
-            "Could not reach the lol-riot Edge Function. Deploy it and set RIOT_API_KEY in Supabase secrets.",
-          );
-        }
-        if (/non-2xx/i.test(msg)) {
-          throw new Error(
-            "Lookup failed (server error). Check Riot ID, region, and that your RIOT_API_KEY is valid.",
-          );
-        }
-        throw new Error(msg);
+      if (bundle?.error) throw new Error(bundle.error);
+      if (fnError) {
+        const fromBody = await invokeErrorBody(fnError);
+        throw new Error(fromBody || fnError.message || "Edge Function failed");
       }
-      if (!data?.account) throw new Error("Empty response from League lookup");
-      return data;
-    },
-    onSuccess: (data) => setResult(data),
-  });
+      if (!bundle?.me?.account?.puuid || !bundle?.friend?.account?.puuid) {
+        throw new Error("Could not load both summoners");
+      }
+
+      setStatus("Crunching duo stats…");
+      const processed = processData(
+        bundle.matches,
+        bundle.timelines,
+        bundle.me.account.puuid,
+        bundle.friend.account.puuid,
+      ) as DuoProcessed | null;
+      if (!processed) {
+        throw new Error("No duo games found in recent match history.");
+      }
+
+      let version = "14.22.1";
+      try {
+        const versions = (await (
+          await fetch("https://ddragon.leagueoflegends.com/api/versions.json")
+        ).json()) as string[];
+        if (Array.isArray(versions) && versions[0]) version = versions[0];
+      } catch {
+        /* keep fallback */
+      }
+
+      processed.ranks = { me: bundle.me.rank, friend: bundle.friend.rank };
+      processed.mastery = {
+        me: await mapMastery(bundle.me.mastery ?? [], version),
+        friend: await mapMastery(bundle.friend.mastery ?? [], version),
+      };
+      processed.version = version;
+      processed.accounts = {
+        me: `${bundle.me.account.gameName}#${bundle.me.account.tagLine}`,
+        friend: `${bundle.friend.account.gameName}#${bundle.friend.account.tagLine}`,
+      };
+
+      setData(processed);
+      setHasLoaded(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Lookup failed");
+      setData(null);
+    } finally {
+      setLoading(false);
+      setStatus("");
+    }
+  };
+
+  useEffect(() => {
+    // Auto-load once with saved/default duo IDs
+    void runDuo();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-    if (!riotId.trim()) return;
-    lookup.mutate();
+    void runDuo();
   };
 
-  const iconUrl = result
-    ? `https://ddragon.leagueoflegends.com/cdn/14.22.1/img/profileicon/${result.summoner.profileIconId}.png`
-    : null;
-
   return (
-    <div className="relative min-h-screen overflow-hidden bg-slate-50 font-sans text-slate-800">
-      <div className="pointer-events-none absolute top-[-10%] left-[-10%] h-[40vw] w-[40vw] rounded-full bg-violet-400/30 blur-[120px]" />
-      <div className="pointer-events-none absolute bottom-[-10%] right-[-10%] h-[40vw] w-[40vw] rounded-full bg-cyan-400/25 blur-[120px]" />
-
-      <div className="relative z-10 mx-auto flex min-h-screen max-w-4xl flex-col gap-6 p-6 sm:p-10">
-        <header className="flex flex-wrap items-center justify-between gap-4">
+    <div className="min-h-screen bg-[#020617] font-sans text-slate-200">
+      <header className="sticky top-0 z-50 border-b border-slate-800 bg-slate-900/50 p-4 backdrop-blur-xl sm:p-6">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="rounded-2xl bg-violet-100 p-3 text-violet-700">
-              <Swords size={28} />
-            </div>
+            <Sparkles size={28} className="text-cyan-500" />
             <div>
-              <h1 className="text-3xl font-black tracking-tight">League of Legends</h1>
-              <p className="text-sm font-semibold text-slate-500">Riot ID lookup</p>
+              <h1 className="text-xl font-black uppercase text-white">Bot Lane Analytics</h1>
+              <p className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-400">
+                <Database size={10} /> Riot + Edge Function
+              </p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={onBackToChooser}
-            className="inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/80 px-4 py-2 text-sm font-bold text-slate-700 shadow-sm backdrop-blur-xl transition hover:bg-violet-600 hover:text-white"
-          >
-            <ArrowLeft size={16} />
-            Switch app
-          </button>
-        </header>
-
-        <form
-          onSubmit={handleSubmit}
-          className="rounded-[2rem] border border-white/80 bg-white/50 p-6 shadow-[0_8px_30px_rgb(0,0,0,0.08)] backdrop-blur-2xl"
-        >
-          <div className="grid gap-4 sm:grid-cols-[1fr_7rem_auto]">
-            <label className="text-sm font-semibold text-slate-700">
-              Riot ID
-              <input
-                value={riotId}
-                onChange={(e) => setRiotId(e.target.value)}
-                placeholder="Name#TAG"
-                className="mt-1 w-full rounded-2xl border border-white/80 bg-white/90 px-4 py-3 font-medium text-slate-800 outline-none focus:ring-2 focus:ring-violet-400"
-                required
-              />
-            </label>
-            <label className="text-sm font-semibold text-slate-700">
-              Region
-              <select
-                value={platform}
-                onChange={(e) => setPlatform(e.target.value as LolPlatform)}
-                className="mt-1 w-full rounded-2xl border border-white/80 bg-white/90 px-3 py-3 font-medium text-slate-800 outline-none focus:ring-2 focus:ring-violet-400"
-              >
-                {PLATFORMS.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+          <div className="flex items-center gap-3">
+            {data && (
+              <div className="hidden text-sm font-bold sm:block">
+                <span className="text-cyan-400">{data.roles?.me ?? "You"}</span>
+                <span className="px-2 text-slate-700">VS</span>
+                <span className="text-rose-400">{data.roles?.friend ?? "Duo"}</span>
+              </div>
+            )}
             <button
-              type="submit"
-              disabled={lookup.isPending}
-              className="mt-auto inline-flex items-center justify-center gap-2 rounded-full bg-violet-600 px-5 py-3 font-bold text-white hover:bg-violet-700 disabled:opacity-50"
+              type="button"
+              onClick={onBackToChooser}
+              className="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-800/80 px-4 py-2 text-sm font-bold text-slate-200 transition hover:bg-cyan-600 hover:text-white"
             >
-              <Search size={18} />
-              {lookup.isPending ? "Looking…" : "Look up"}
+              <ArrowLeft size={16} />
+              Switch app
             </button>
           </div>
-          <p className="mt-3 text-xs font-medium text-slate-500">
-            Paste the full ID in one field, like{" "}
-            <span className="font-bold text-slate-600">Faker#KR1</span>. Pick the player&apos;s
-            region too.
-          </p>
-        </form>
+        </div>
+      </header>
 
-        {lookup.error && (
-          <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
-            {lookup.error instanceof Error ? lookup.error.message : "Lookup failed"}
-          </p>
-        )}
+      <form
+        onSubmit={handleSubmit}
+        className="mx-auto grid max-w-7xl gap-3 px-4 py-4 sm:grid-cols-[1fr_1fr_7rem_auto] sm:px-6"
+      >
+        <label className="text-xs font-bold uppercase tracking-wide text-slate-400">
+          You (Name#TAG)
+          <input
+            value={meRiotId}
+            onChange={(e) => setMeRiotId(e.target.value)}
+            className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm font-semibold text-white outline-none focus:ring-2 focus:ring-cyan-500"
+            placeholder="you#TAG"
+            required
+          />
+        </label>
+        <label className="text-xs font-bold uppercase tracking-wide text-slate-400">
+          Duo partner (Name#TAG)
+          <input
+            value={friendRiotId}
+            onChange={(e) => setFriendRiotId(e.target.value)}
+            className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm font-semibold text-white outline-none focus:ring-2 focus:ring-cyan-500"
+            placeholder="friend#TAG"
+            required
+          />
+        </label>
+        <label className="text-xs font-bold uppercase tracking-wide text-slate-400">
+          Region
+          <select
+            value={platform}
+            onChange={(e) => setPlatform(e.target.value as LolPlatform)}
+            className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm font-semibold text-white outline-none focus:ring-2 focus:ring-cyan-500"
+          >
+            {PLATFORMS.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button
+          type="submit"
+          disabled={loading}
+          className="mt-auto inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-cyan-500 disabled:opacity-50"
+        >
+          <Search size={16} />
+          {loading ? "Loading…" : "Analyze"}
+        </button>
+      </form>
 
-        {result && (
-          <div className="space-y-5">
-            <section className="flex flex-wrap items-center gap-5 rounded-[2rem] border border-white/80 bg-white/55 p-6 shadow-sm backdrop-blur-xl">
-              {iconUrl && (
-                <img
-                  src={iconUrl}
-                  alt=""
-                  className="h-20 w-20 rounded-2xl border border-white/80 shadow-md"
-                />
-              )}
-              <div>
-                <h2 className="text-2xl font-black text-slate-800">
-                  {result.account.gameName}
-                  <span className="text-violet-600">#{result.account.tagLine}</span>
-                </h2>
-                <p className="mt-1 text-sm font-semibold text-slate-500">
-                  Level {result.summoner.level} · {result.platform.toUpperCase()}
-                </p>
-              </div>
-            </section>
+      {loading && (
+        <div className="flex flex-col items-center justify-center gap-3 py-24 text-cyan-500">
+          <Loader2 size={56} className="animate-spin" />
+          <h2 className="text-2xl font-black">LOADING…</h2>
+          <p className="animate-pulse text-slate-500">{status}</p>
+        </div>
+      )}
 
-            <section className="rounded-[2rem] border border-white/80 bg-white/55 p-6 shadow-sm backdrop-blur-xl">
-              <h3 className="mb-4 text-sm font-bold uppercase tracking-wide text-slate-500">Ranked</h3>
-              {result.ranked.length === 0 ? (
-                <p className="text-sm font-medium text-slate-500">No ranked entries this season.</p>
-              ) : (
-                <ul className="grid gap-3 sm:grid-cols-2">
-                  {result.ranked.map((entry) => (
-                    <li
-                      key={`${entry.queueType}-${entry.tier}-${entry.rank}`}
-                      className="rounded-2xl border border-white/80 bg-white/80 px-4 py-3"
-                    >
-                      <p className="text-xs font-bold uppercase text-slate-400">
-                        {queueLabel(entry.queueType)}
-                      </p>
-                      <p className="text-lg font-black text-slate-800">
-                        {entry.tier} {entry.rank} · {entry.leaguePoints} LP
-                      </p>
-                      <p className="text-sm font-semibold text-slate-500">
-                        {entry.wins}W / {entry.losses}L
-                      </p>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
+      {!loading && error && (
+        <div className="mx-auto flex max-w-xl flex-col items-center gap-3 px-6 py-16 text-center text-rose-400">
+          <AlertTriangle size={48} />
+          <h2 className="text-xl font-bold">Couldn’t load duo stats</h2>
+          <p className="text-sm text-rose-300/90">{error}</p>
+        </div>
+      )}
 
-            <section className="rounded-[2rem] border border-white/80 bg-white/55 p-6 shadow-sm backdrop-blur-xl">
-              <h3 className="mb-4 text-sm font-bold uppercase tracking-wide text-slate-500">
-                Recent matches
-              </h3>
-              {result.recentMatches.length === 0 ? (
-                <p className="text-sm font-medium text-slate-500">No recent matches returned.</p>
-              ) : (
-                <ul className="space-y-2">
-                  {result.recentMatches.map((m) => (
-                    <li
-                      key={m.matchId}
-                      className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-white/80 bg-white/80 px-4 py-3"
-                    >
-                      <div>
-                        <p className="font-bold text-slate-800">{m.championName}</p>
-                        <p className="text-xs font-semibold text-slate-500">
-                          {m.gameMode} · {formatDuration(m.gameDuration)}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p
-                          className={`text-sm font-black ${m.win ? "text-emerald-600" : "text-rose-600"}`}
-                        >
-                          {m.win ? "Win" : "Loss"}
-                        </p>
-                        <p className="font-bold tabular-nums text-slate-700">
-                          {m.kills}/{m.deaths}/{m.assists}
-                        </p>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
-          </div>
-        )}
-      </div>
+      {!loading && hasLoaded && data && (
+        <>
+          <nav className="mx-auto flex max-w-7xl gap-2 overflow-x-auto px-4 py-2 sm:px-6">
+            {(["overview", "synergy", "shame", "future"] as const).map((tab) => (
+              <button
+                key={tab}
+                type="button"
+                onClick={() => setActiveTab(tab)}
+                className={`rounded px-4 py-2 text-sm font-bold uppercase tracking-wider transition-all ${
+                  activeTab === tab
+                    ? "scale-105 bg-cyan-600 text-white shadow-lg shadow-cyan-500/20"
+                    : "bg-slate-800 text-slate-400 hover:bg-slate-700"
+                }`}
+              >
+                {tab}
+              </button>
+            ))}
+          </nav>
+
+          <main className="mx-auto mt-4 max-w-7xl px-4 pb-20 sm:px-6">
+            {activeTab === "overview" && <OverviewTab data={data} />}
+            {activeTab === "synergy" && <SynergyTab data={data} />}
+            {activeTab === "shame" && <ShameTab data={data} />}
+            {activeTab === "future" && <FutureTab data={data} />}
+          </main>
+        </>
+      )}
     </div>
   );
 }
