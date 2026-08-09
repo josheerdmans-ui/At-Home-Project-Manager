@@ -1,4 +1,5 @@
--- Household members and calendar event member links
+/** Household members + calendar links (keep in sync with 20260809120000_family_wall_display.sql) */
+export const HOUSEHOLD_SETUP_SQL = `-- Household members and calendar event links
 
 begin;
 
@@ -53,3 +54,4 @@ create policy "calendar_event_members_anon_all"
   on public.calendar_event_members for all using (true) with check (true);
 
 commit;
+`;

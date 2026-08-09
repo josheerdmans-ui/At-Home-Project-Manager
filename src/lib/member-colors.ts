@@ -1,4 +1,4 @@
-/** Color tokens for household members (wall calendar chips) */
+/** Color tokens for household members (roster / calendar chips) */
 
 export type MemberColorToken =
   | "sky"

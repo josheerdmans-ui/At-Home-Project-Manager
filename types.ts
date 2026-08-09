@@ -356,35 +356,13 @@ export interface Database {
           },
         ];
       };
-      household_settings: {
-        Row: {
-          id: number;
-          frame_interval_sec: number;
-          frame_shuffle: boolean;
-          frame_include_person: boolean;
-          updated_at: string;
-        };
-        Insert: {
-          id?: number;
-          frame_interval_sec?: number;
-          frame_shuffle?: boolean;
-          frame_include_person?: boolean;
-          updated_at?: string;
-        };
-        Update: {
-          id?: number;
-          frame_interval_sec?: number;
-          frame_shuffle?: boolean;
-          frame_include_person?: boolean;
-          updated_at?: string;
-        };
-        Relationships: [];
-      };
-      routines: {
+      chores: {
         Row: {
           id: string;
           title: string;
-          icon_key: string;
+          token_value: number;
+          assignee_id: string | null;
+          is_active: boolean;
           sort_order: number;
           created_at: string;
           updated_at: string;
@@ -392,7 +370,9 @@ export interface Database {
         Insert: {
           id?: string;
           title: string;
-          icon_key?: string;
+          token_value?: number;
+          assignee_id?: string | null;
+          is_active?: boolean;
           sort_order?: number;
           created_at?: string;
           updated_at?: string;
@@ -400,70 +380,272 @@ export interface Database {
         Update: {
           id?: string;
           title?: string;
-          icon_key?: string;
-          sort_order?: number;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Relationships: [];
-      };
-      routine_steps: {
-        Row: {
-          id: string;
-          routine_id: string;
-          title: string;
-          sort_order: number;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: {
-          id?: string;
-          routine_id: string;
-          title: string;
-          sort_order?: number;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: {
-          id?: string;
-          routine_id?: string;
-          title?: string;
+          token_value?: number;
+          assignee_id?: string | null;
+          is_active?: boolean;
           sort_order?: number;
           created_at?: string;
           updated_at?: string;
         };
         Relationships: [
           {
-            foreignKeyName: "routine_steps_routine_id_fkey";
-            columns: ["routine_id"];
+            foreignKeyName: "chores_assignee_id_fkey";
+            columns: ["assignee_id"];
             isOneToOne: false;
-            referencedRelation: "routines";
+            referencedRelation: "household_members";
             referencedColumns: ["id"];
           },
         ];
       };
-      routine_step_completions: {
+      token_ledger: {
         Row: {
-          step_id: string;
-          completed_on: string;
+          id: string;
+          member_id: string;
+          delta: number;
+          reason: "chore_complete" | "reward_purchase" | "adjustment";
+          ref_id: string | null;
+          note: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          member_id: string;
+          delta: number;
+          reason: "chore_complete" | "reward_purchase" | "adjustment";
+          ref_id?: string | null;
+          note?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          member_id?: string;
+          delta?: number;
+          reason?: "chore_complete" | "reward_purchase" | "adjustment";
+          ref_id?: string | null;
+          note?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "token_ledger_member_id_fkey";
+            columns: ["member_id"];
+            isOneToOne: false;
+            referencedRelation: "household_members";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      chore_completions: {
+        Row: {
+          id: string;
+          chore_id: string;
+          member_id: string;
+          ledger_id: string | null;
           completed_at: string;
         };
         Insert: {
-          step_id: string;
-          completed_on?: string;
+          id?: string;
+          chore_id: string;
+          member_id: string;
+          ledger_id?: string | null;
           completed_at?: string;
         };
         Update: {
-          step_id?: string;
-          completed_on?: string;
+          id?: string;
+          chore_id?: string;
+          member_id?: string;
+          ledger_id?: string | null;
           completed_at?: string;
         };
         Relationships: [
           {
-            foreignKeyName: "routine_step_completions_step_id_fkey";
-            columns: ["step_id"];
+            foreignKeyName: "chore_completions_chore_id_fkey";
+            columns: ["chore_id"];
             isOneToOne: false;
-            referencedRelation: "routine_steps";
+            referencedRelation: "chores";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "chore_completions_member_id_fkey";
+            columns: ["member_id"];
+            isOneToOne: false;
+            referencedRelation: "household_members";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      rewards: {
+        Row: {
+          id: string;
+          title: string;
+          description: string | null;
+          token_cost: number;
+          is_active: boolean;
+          sort_order: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          title: string;
+          description?: string | null;
+          token_cost: number;
+          is_active?: boolean;
+          sort_order?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          title?: string;
+          description?: string | null;
+          token_cost?: number;
+          is_active?: boolean;
+          sort_order?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      reward_redemptions: {
+        Row: {
+          id: string;
+          reward_id: string;
+          member_id: string;
+          token_cost: number;
+          status: "pending" | "fulfilled" | "cancelled";
+          ledger_id: string | null;
+          created_at: string;
+          fulfilled_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          reward_id: string;
+          member_id: string;
+          token_cost: number;
+          status?: "pending" | "fulfilled" | "cancelled";
+          ledger_id?: string | null;
+          created_at?: string;
+          fulfilled_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          reward_id?: string;
+          member_id?: string;
+          token_cost?: number;
+          status?: "pending" | "fulfilled" | "cancelled";
+          ledger_id?: string | null;
+          created_at?: string;
+          fulfilled_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "reward_redemptions_reward_id_fkey";
+            columns: ["reward_id"];
+            isOneToOne: false;
+            referencedRelation: "rewards";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "reward_redemptions_member_id_fkey";
+            columns: ["member_id"];
+            isOneToOne: false;
+            referencedRelation: "household_members";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      meals: {
+        Row: {
+          id: string;
+          name: string;
+          prep_time: string;
+          cook_time: string;
+          ingredients: string[];
+          instructions: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          prep_time?: string;
+          cook_time?: string;
+          ingredients?: string[];
+          instructions?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          prep_time?: string;
+          cook_time?: string;
+          ingredients?: string[];
+          instructions?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      meal_likes: {
+        Row: {
+          meal_id: string;
+          member_id: string;
+        };
+        Insert: {
+          meal_id: string;
+          member_id: string;
+        };
+        Update: {
+          meal_id?: string;
+          member_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "meal_likes_meal_id_fkey";
+            columns: ["meal_id"];
+            isOneToOne: false;
+            referencedRelation: "meals";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "meal_likes_member_id_fkey";
+            columns: ["member_id"];
+            isOneToOne: false;
+            referencedRelation: "household_members";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      meal_plan_entries: {
+        Row: {
+          id: string;
+          plan_date: string;
+          slot: "breakfast" | "lunch" | "dinner";
+          meal_id: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          plan_date: string;
+          slot: "breakfast" | "lunch" | "dinner";
+          meal_id: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          plan_date?: string;
+          slot?: "breakfast" | "lunch" | "dinner";
+          meal_id?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "meal_plan_entries_meal_id_fkey";
+            columns: ["meal_id"];
+            isOneToOne: false;
+            referencedRelation: "meals";
             referencedColumns: ["id"];
           },
         ];
@@ -620,13 +802,22 @@ export type FamilyCalendarEventUpdate = Tables["family_calendar_events"]["Update
 export type HouseholdMemberRow = Tables["household_members"]["Row"];
 export type HouseholdMemberInsert = Tables["household_members"]["Insert"];
 export type HouseholdMemberUpdate = Tables["household_members"]["Update"];
-export type HouseholdSettingsRow = Tables["household_settings"]["Row"];
-export type HouseholdSettingsUpdate = Tables["household_settings"]["Update"];
-export type RoutineRow = Tables["routines"]["Row"];
-export type RoutineInsert = Tables["routines"]["Insert"];
-export type RoutineStepRow = Tables["routine_steps"]["Row"];
-export type RoutineStepInsert = Tables["routine_steps"]["Insert"];
-export type RoutineStepCompletionRow = Tables["routine_step_completions"]["Row"];
+export type ChoreRow = Tables["chores"]["Row"];
+export type ChoreInsert = Tables["chores"]["Insert"];
+export type ChoreUpdate = Tables["chores"]["Update"];
+export type TokenLedgerRow = Tables["token_ledger"]["Row"];
+export type TokenLedgerInsert = Tables["token_ledger"]["Insert"];
+export type ChoreCompletionRow = Tables["chore_completions"]["Row"];
+export type RewardRow = Tables["rewards"]["Row"];
+export type RewardInsert = Tables["rewards"]["Insert"];
+export type RewardUpdate = Tables["rewards"]["Update"];
+export type RewardRedemptionRow = Tables["reward_redemptions"]["Row"];
+export type MealRow = Tables["meals"]["Row"];
+export type MealInsert = Tables["meals"]["Insert"];
+export type MealUpdate = Tables["meals"]["Update"];
+export type MealLikeRow = Tables["meal_likes"]["Row"];
+export type MealPlanEntryRow = Tables["meal_plan_entries"]["Row"];
+export type MealPlanEntryInsert = Tables["meal_plan_entries"]["Insert"];
 export type BankingAccountRow = Tables["banking_accounts"]["Row"];
 export type BankingTransactionRow = Tables["banking_transactions"]["Row"];
 export type BankingSettingsRow = Tables["banking_settings"]["Row"];

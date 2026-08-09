@@ -2,7 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Plus, Trash2, Users } from "lucide-react";
 import type { MemberColorToken } from "../../../types";
 import { DbSetupPanel } from "../../components/DbSetupPanel";
-import { WALL_DISPLAY_SETUP_SQL } from "../../lib/wall-display-setup-sql";
+import { HOUSEHOLD_SETUP_SQL } from "../../lib/household-setup-sql";
 import {
   MEMBER_COLOR_STYLES,
   MEMBER_COLOR_TOKENS,
@@ -23,7 +23,7 @@ export function RosterRoom() {
   if (error && isMissingMembersTableError(error.message)) {
     return (
       <div className="flex h-full items-center justify-center p-6">
-        <DbSetupPanel title="Family wall database setup" sql={WALL_DISPLAY_SETUP_SQL} />
+        <DbSetupPanel title="Household database setup" sql={HOUSEHOLD_SETUP_SQL} />
       </div>
     );
   }

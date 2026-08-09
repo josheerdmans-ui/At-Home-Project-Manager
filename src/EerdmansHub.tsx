@@ -15,8 +15,11 @@ import { ImageVaultRoom } from "./rooms/image-vault/ImageVaultRoom";
 import { VaultRoom } from "./rooms/vault/VaultRoom";
 import { BankingRoom } from "./rooms/banking/BankingRoom";
 import { RosterRoom } from "./rooms/roster/RosterRoom";
-import { WallDisplayShell } from "./display/WallDisplayShell";
+import { ChoresRoom } from "./rooms/chores/ChoresRoom";
+import { RewardsRoom } from "./rooms/rewards/RewardsRoom";
 import { HomeCameraCapture } from "./components/HomeCameraCapture";
+import { HomeClockWeather } from "./components/HomeClockWeather";
+import { HomeScreensaver } from "./components/HomeScreensaver";
 import { PhotoKindBubbles } from "./components/PhotoKindBubbles";
 import type { ImagePhotoKind } from "../types";
 import { useStandaloneApp } from "./hooks/useStandaloneApp";
@@ -36,7 +39,8 @@ import {
   Camera,
   Images,
   Wallet,
-  Monitor,
+  ListTodo,
+  Gift,
 } from "lucide-react";
 
 // Schedule logic
@@ -93,7 +97,9 @@ type RoomId =
   | "projects"
   | "roster"
   | "calendar"
-  | "banking";
+  | "banking"
+  | "chores"
+  | "rewards";
 
 function TopNavigation({
   activeRoom,
@@ -111,6 +117,8 @@ function TopNavigation({
     { id: "projects" as const, icon: <Archive size={20} />, label: "Projects" },
     { id: "banking" as const, icon: <Wallet size={20} />, label: "Banking" },
     { id: "roster" as const, icon: <Users size={20} />, label: "Roster" },
+    { id: "chores" as const, icon: <ListTodo size={20} />, label: "Chores" },
+    { id: "rewards" as const, icon: <Gift size={20} />, label: "Rewards" },
     { id: "calendar" as const, icon: <CalendarDays size={20} />, label: "Calendar" },
   ];
 
@@ -401,22 +409,9 @@ function NetworkRoom() {
   );
 }
 
-const WALL_HUB_ROOMS = [
-  { id: "network", label: "Network" },
-  { id: "kitchen", label: "Kitchen" },
-  { id: "garage", label: "Garage" },
-  { id: "vault", label: "Vault" },
-  { id: "image_vault", label: "Image Vault" },
-  { id: "projects", label: "Projects" },
-  { id: "banking", label: "Banking" },
-  { id: "roster", label: "Roster" },
-  { id: "calendar", label: "Calendar room" },
-];
-
 export default function EerdmansHub() {
   useStandaloneApp();
   const [activeRoom, setActiveRoom] = useState<RoomId | null>(null);
-  const [wallDisplay, setWallDisplay] = useState(false);
   const [showPhotoKindPick, setShowPhotoKindPick] = useState(false);
   const [captureKind, setCaptureKind] = useState<ImagePhotoKind | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -446,6 +441,10 @@ export default function EerdmansHub() {
         return <BankingRoom />;
       case "roster":
         return <RosterRoom />;
+      case "chores":
+        return <ChoresRoom />;
+      case "rewards":
+        return <RewardsRoom />;
       case "calendar":
         return <CalendarRoom onGoBack={() => setActiveRoom(null)} />;
       default:
@@ -496,19 +495,12 @@ export default function EerdmansHub() {
               </span>
             </div>
 
+            <HomeClockWeather />
+
             <div className="pointer-events-none fixed bottom-6 right-6 z-40 flex w-72 flex-col gap-4">
               <TodayWidget />
               <HomeNotificationsWidget />
             </div>
-
-            <button
-              type="button"
-              onClick={() => setWallDisplay(true)}
-              className="fixed top-8 right-8 z-50 flex items-center gap-2 rounded-full border border-white/80 bg-white/90 px-5 py-3 font-bold text-slate-800 shadow-[0_8px_30px_rgb(0,0,0,0.12)] backdrop-blur-xl transition hover:bg-orange-500 hover:text-white"
-            >
-              <Monitor size={20} />
-              Wall display
-            </button>
 
             <button
               type="button"
@@ -539,20 +531,13 @@ export default function EerdmansHub() {
                 onSaved={() => setCaptureKind(null)}
               />
             )}
+
+            <HomeScreensaver
+              enabled={!showPhotoKindPick && captureKind == null}
+            />
           </>
         )}
       </div>
-
-      {wallDisplay && (
-        <WallDisplayShell
-          onExit={() => setWallDisplay(false)}
-          onOpenRoom={(roomId) => {
-            setWallDisplay(false);
-            setActiveRoom(roomId as RoomId);
-          }}
-          rooms={WALL_HUB_ROOMS}
-        />
-      )}
     </div>
   );
 }
