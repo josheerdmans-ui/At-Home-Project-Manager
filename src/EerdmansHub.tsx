@@ -409,7 +409,7 @@ function NetworkRoom() {
   );
 }
 
-export default function EerdmansHub() {
+export default function EerdmansHub({ onSwitchApp }: { onSwitchApp?: () => void }) {
   useStandaloneApp();
   const [activeRoom, setActiveRoom] = useState<RoomId | null>(null);
   const [showPhotoKindPick, setShowPhotoKindPick] = useState(false);
@@ -484,15 +484,26 @@ export default function EerdmansHub() {
             <TopNavigation activeRoom={activeRoom} setActiveRoom={setActiveRoom} />
 
             {/* Minimal Internet Status Widget (No Background) */}
-            <div className="fixed top-8 left-8 z-40 flex items-center gap-3 cursor-default pointer-events-none select-none">
-              <div
-                className={`w-4 h-4 rounded-full transition-colors duration-500 ${internetStatus ? "bg-green-500 shadow-[0_0_15px_#22c55e]" : "bg-red-500 shadow-[0_0_15px_#ef4444]"}`}
-              ></div>
-              <span
-                className={`text-2xl font-black tracking-tight ${internetStatus ? "text-green-600" : "text-red-600 drop-shadow-md"}`}
-              >
-                INTERNET {internetStatus ? "ON" : "OFF"}
-              </span>
+            <div className="fixed top-8 left-8 z-40 flex flex-col gap-3 pointer-events-none select-none">
+              <div className="flex items-center gap-3 cursor-default">
+                <div
+                  className={`w-4 h-4 rounded-full transition-colors duration-500 ${internetStatus ? "bg-green-500 shadow-[0_0_15px_#22c55e]" : "bg-red-500 shadow-[0_0_15px_#ef4444]"}`}
+                ></div>
+                <span
+                  className={`text-2xl font-black tracking-tight ${internetStatus ? "text-green-600" : "text-red-600 drop-shadow-md"}`}
+                >
+                  INTERNET {internetStatus ? "ON" : "OFF"}
+                </span>
+              </div>
+              {onSwitchApp && (
+                <button
+                  type="button"
+                  onClick={onSwitchApp}
+                  className="pointer-events-auto w-fit rounded-full border border-white/80 bg-white/80 px-3 py-1.5 text-xs font-bold text-slate-600 shadow-sm backdrop-blur-xl transition hover:bg-cyan-600 hover:text-white"
+                >
+                  Switch app
+                </button>
+              )}
             </div>
 
             <HomeClockWeather />
