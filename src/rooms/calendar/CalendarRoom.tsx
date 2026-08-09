@@ -36,6 +36,8 @@ import {
   useFamilyCalendarEvents,
   useFamilyCalendarEventsMutations,
 } from "./useFamilyCalendarEvents";
+import { useHouseholdMembers } from "../../hooks/useHouseholdMembers";
+import { chipClassFromToken } from "../../lib/member-colors";
 
 const DEFAULT_COLOR = EVENT_COLORS[0]!.value;
 
@@ -63,7 +65,11 @@ function DayEventChip({
   event: CalendarEvent;
   onEdit: (ev: CalendarEvent) => void;
 }) {
-  const chipClass = `${event.colorClass} border border-white/50`;
+  const fromMembers =
+    event.memberColorTokens?.[0] != null
+      ? `${chipClassFromToken(event.memberColorTokens[0])} border`
+      : null;
+  const chipClass = fromMembers ?? `${event.colorClass} border border-white/50`;
   const tip = `${formatTimeForDisplay(event.time)} - ${event.title}`;
 
   if (event.editable) {
@@ -101,31 +107,42 @@ export function CalendarRoom({ onGoBack }: CalendarRoomProps) {
     time: string;
     type: FamilyEventKind;
     color: string;
+    memberIds: string[];
   }>({
     title: "",
     date: formatDateKey(new Date()),
     time: "",
     type: "regular",
     color: DEFAULT_COLOR,
+    memberIds: [],
   });
 
   const { data: familyEvents = [], error: familyError } = useFamilyCalendarEvents();
   const familyMut = useFamilyCalendarEventsMutations();
+  const { data: householdMembers = [] } = useHouseholdMembers();
   const { data: vehicles = [], error: vehicleError } = useVehicles();
   const { data: documents = [], error: vaultError } = useVaultDocuments();
 
   const garageUnavailable = vehicleError && garageMissing(vehicleError.message);
   const vaultUnavailable = vaultError && vaultMissing(vaultError.message);
 
+  const memberColorById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const member of householdMembers) {
+      m.set(member.id, member.color_token);
+    }
+    return m;
+  }, [householdMembers]);
+
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
 
   const allEvents = useMemo(() => {
-    const family = familyEventsToCalendar(familyEvents);
+    const family = familyEventsToCalendar(familyEvents, memberColorById);
     const garage = garageUnavailable ? [] : collectGarageCalendarEvents(vehicles);
     const vault = vaultUnavailable ? [] : collectVaultCalendarEvents(documents);
     return mergeCalendarEvents(family, garage, vault);
-  }, [familyEvents, vehicles, documents, garageUnavailable, vaultUnavailable]);
+  }, [familyEvents, vehicles, documents, garageUnavailable, vaultUnavailable, memberColorById]);
 
   const calendarDays = useMemo(() => buildCalendarDays(year, month), [year, month]);
 
@@ -144,6 +161,7 @@ export function CalendarRoom({ onGoBack }: CalendarRoomProps) {
       time: "",
       type: "regular",
       color: DEFAULT_COLOR,
+      memberIds: [],
     });
     setEditingId(null);
   };
@@ -164,6 +182,7 @@ export function CalendarRoom({ onGoBack }: CalendarRoomProps) {
       time: timeInputFromStored(family.time),
       type: family.eventKind,
       color: family.colorClass,
+      memberIds: family.memberIds ?? [],
     });
     setIsModalOpen(true);
   };
@@ -185,6 +204,7 @@ export function CalendarRoom({ onGoBack }: CalendarRoomProps) {
         time: newEventForm.time.trim() || null,
         eventKind: newEventForm.type,
         colorClass: newEventForm.color,
+        memberIds: newEventForm.memberIds,
       },
       { onSuccess: closeModal },
     );
@@ -439,6 +459,38 @@ export function CalendarRoom({ onGoBack }: CalendarRoomProps) {
                   ))}
                 </div>
               </div>
+
+              {householdMembers.length > 0 && (
+                <div>
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-600">People</label>
+                  <div className="flex flex-wrap gap-2">
+                    {householdMembers.map((m) => {
+                      const selected = newEventForm.memberIds.includes(m.id);
+                      return (
+                        <button
+                          key={m.id}
+                          type="button"
+                          onClick={() => {
+                            setNewEventForm((prev) => ({
+                              ...prev,
+                              memberIds: selected
+                                ? prev.memberIds.filter((id) => id !== m.id)
+                                : [...prev.memberIds, m.id],
+                            }));
+                          }}
+                          className={`rounded-full border px-3 py-1.5 text-sm font-semibold transition ${
+                            selected
+                              ? `${chipClassFromToken(m.color_token)} ring-2 ring-slate-400`
+                              : "border-slate-200 bg-slate-50 text-slate-600 hover:bg-white"
+                          }`}
+                        >
+                          {m.display_name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               <div className="flex flex-col gap-3 pt-2">
                 {editingId && (

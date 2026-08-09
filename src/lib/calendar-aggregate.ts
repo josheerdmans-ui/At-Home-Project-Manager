@@ -18,6 +18,9 @@ export type CalendarEvent = {
   colorClass: string;
   eventKind?: string;
   isImportant?: boolean;
+  memberIds?: string[];
+  /** Solid color dots / chips by household member token. */
+  memberColorTokens?: string[];
 };
 
 export function toDateKey(d: Date): string {
@@ -104,20 +107,40 @@ export function collectVaultCalendarEvents(documents: VaultDocumentRow[]): Calen
   return out;
 }
 
-export function familyEventsToCalendar(events: FamilyCalendarEvent[]): CalendarEvent[] {
-  return events.map((e) => ({
-    id: `family-${e.id}`,
-    date: e.date,
-    title: e.title,
-    time: e.time,
-    source: "family" as const,
-    kind: e.category,
-    editable: true,
-    familyEventId: e.id,
-    colorClass: e.colorClass,
-    eventKind: e.eventKind,
-    isImportant: e.eventKind === "important",
-  }));
+export function familyEventsToCalendar(
+  events: FamilyCalendarEvent[],
+  memberColorById?: Map<string, string>,
+): CalendarEvent[] {
+  return events.map((e) => {
+    const tokens =
+      memberColorById && e.memberIds.length > 0
+        ? e.memberIds
+            .map((id) => memberColorById.get(id))
+            .filter((t): t is string => Boolean(t))
+        : [];
+    const colorFromMembers =
+      tokens[0] && memberColorById
+        ? // Use first member as primary chip class via token-derived chip styles handled in UI;
+          // keep colorClass as storage fallback; wall UI prefers memberColorTokens.
+          e.colorClass
+        : e.colorClass;
+
+    return {
+      id: `family-${e.id}`,
+      date: e.date,
+      title: e.title,
+      time: e.time,
+      source: "family" as const,
+      kind: e.category,
+      editable: true,
+      familyEventId: e.id,
+      colorClass: colorFromMembers,
+      eventKind: e.eventKind,
+      isImportant: e.eventKind === "important",
+      memberIds: e.memberIds,
+      memberColorTokens: tokens.length > 0 ? tokens : undefined,
+    };
+  });
 }
 
 export function mergeCalendarEvents(...groups: CalendarEvent[][]): CalendarEvent[] {

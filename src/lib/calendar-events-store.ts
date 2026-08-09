@@ -12,6 +12,8 @@ export type FamilyCalendarEvent = {
   eventKind: FamilyEventKind;
   colorClass: string;
   notes: string | null;
+  /** Assigned household member ids (junction table). */
+  memberIds: string[];
   createdAt: string;
   updatedAt: string;
 };

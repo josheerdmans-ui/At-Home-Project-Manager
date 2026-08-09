@@ -14,6 +14,15 @@ export type ImagePhotoKind = "memory" | "person";
 export type HouseProjectKind = "repair" | "remodel" | "general";
 export type FamilyEventCategory = "general" | "meal" | "activity" | "appointment";
 export type FamilyEventKind = "regular" | "important" | "birthday" | "school";
+export type MemberColorToken =
+  | "sky"
+  | "orange"
+  | "violet"
+  | "emerald"
+  | "rose"
+  | "amber"
+  | "cyan"
+  | "indigo";
 
 export type VaultExtraFile = {
   path: string;
@@ -290,6 +299,175 @@ export interface Database {
         };
         Relationships: [];
       };
+      household_members: {
+        Row: {
+          id: string;
+          display_name: string;
+          color_token: MemberColorToken;
+          sort_order: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          display_name: string;
+          color_token?: MemberColorToken;
+          sort_order?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          display_name?: string;
+          color_token?: MemberColorToken;
+          sort_order?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      calendar_event_members: {
+        Row: {
+          event_id: string;
+          member_id: string;
+        };
+        Insert: {
+          event_id: string;
+          member_id: string;
+        };
+        Update: {
+          event_id?: string;
+          member_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "calendar_event_members_event_id_fkey";
+            columns: ["event_id"];
+            isOneToOne: false;
+            referencedRelation: "family_calendar_events";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "calendar_event_members_member_id_fkey";
+            columns: ["member_id"];
+            isOneToOne: false;
+            referencedRelation: "household_members";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      household_settings: {
+        Row: {
+          id: number;
+          frame_interval_sec: number;
+          frame_shuffle: boolean;
+          frame_include_person: boolean;
+          updated_at: string;
+        };
+        Insert: {
+          id?: number;
+          frame_interval_sec?: number;
+          frame_shuffle?: boolean;
+          frame_include_person?: boolean;
+          updated_at?: string;
+        };
+        Update: {
+          id?: number;
+          frame_interval_sec?: number;
+          frame_shuffle?: boolean;
+          frame_include_person?: boolean;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      routines: {
+        Row: {
+          id: string;
+          title: string;
+          icon_key: string;
+          sort_order: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          title: string;
+          icon_key?: string;
+          sort_order?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          title?: string;
+          icon_key?: string;
+          sort_order?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      routine_steps: {
+        Row: {
+          id: string;
+          routine_id: string;
+          title: string;
+          sort_order: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          routine_id: string;
+          title: string;
+          sort_order?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          routine_id?: string;
+          title?: string;
+          sort_order?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "routine_steps_routine_id_fkey";
+            columns: ["routine_id"];
+            isOneToOne: false;
+            referencedRelation: "routines";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      routine_step_completions: {
+        Row: {
+          step_id: string;
+          completed_on: string;
+          completed_at: string;
+        };
+        Insert: {
+          step_id: string;
+          completed_on?: string;
+          completed_at?: string;
+        };
+        Update: {
+          step_id?: string;
+          completed_on?: string;
+          completed_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "routine_step_completions_step_id_fkey";
+            columns: ["step_id"];
+            isOneToOne: false;
+            referencedRelation: "routine_steps";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       banking_accounts: {
         Row: {
           id: string;
@@ -439,6 +617,16 @@ export type HouseProjectUpdate = Tables["house_projects"]["Update"];
 export type FamilyCalendarEventRow = Tables["family_calendar_events"]["Row"];
 export type FamilyCalendarEventInsert = Tables["family_calendar_events"]["Insert"];
 export type FamilyCalendarEventUpdate = Tables["family_calendar_events"]["Update"];
+export type HouseholdMemberRow = Tables["household_members"]["Row"];
+export type HouseholdMemberInsert = Tables["household_members"]["Insert"];
+export type HouseholdMemberUpdate = Tables["household_members"]["Update"];
+export type HouseholdSettingsRow = Tables["household_settings"]["Row"];
+export type HouseholdSettingsUpdate = Tables["household_settings"]["Update"];
+export type RoutineRow = Tables["routines"]["Row"];
+export type RoutineInsert = Tables["routines"]["Insert"];
+export type RoutineStepRow = Tables["routine_steps"]["Row"];
+export type RoutineStepInsert = Tables["routine_steps"]["Insert"];
+export type RoutineStepCompletionRow = Tables["routine_step_completions"]["Row"];
 export type BankingAccountRow = Tables["banking_accounts"]["Row"];
 export type BankingTransactionRow = Tables["banking_transactions"]["Row"];
 export type BankingSettingsRow = Tables["banking_settings"]["Row"];

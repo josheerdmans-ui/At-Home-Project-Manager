@@ -12,7 +12,7 @@ import { EVENT_COLORS } from "./calendar-ui";
 const FAMILY_CALENDAR_KEY = ["family_calendar_events"] as const;
 const DEFAULT_COLOR = EVENT_COLORS[2]!.value;
 
-function rowToEvent(row: FamilyCalendarEventRow): FamilyCalendarEvent {
+function rowToEvent(row: FamilyCalendarEventRow, memberIds: string[] = []): FamilyCalendarEvent {
   return {
     id: row.id,
     title: row.title,
@@ -22,6 +22,7 @@ function rowToEvent(row: FamilyCalendarEventRow): FamilyCalendarEvent {
     eventKind: row.event_kind ?? "regular",
     colorClass: row.color_class ?? DEFAULT_COLOR,
     notes: row.notes,
+    memberIds,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -35,6 +36,52 @@ export function isMissingFamilyCalendarTableError(message: string) {
   );
 }
 
+async function fetchEventMemberMap(): Promise<Map<string, string[]>> {
+  const map = new Map<string, string[]>();
+  const { data, error } = await supabase.from("calendar_event_members").select("event_id, member_id");
+  if (error) {
+    // Junction table may not exist yet; continue without members
+    if (
+      error.message.includes("Could not find the table") ||
+      error.message.includes("does not exist") ||
+      error.message.includes("calendar_event_members")
+    ) {
+      return map;
+    }
+    throw error;
+  }
+  for (const link of data ?? []) {
+    const list = map.get(link.event_id) ?? [];
+    list.push(link.member_id);
+    map.set(link.event_id, list);
+  }
+  return map;
+}
+
+async function syncEventMembers(eventId: string, memberIds: string[]) {
+  const { error: delError } = await supabase
+    .from("calendar_event_members")
+    .delete()
+    .eq("event_id", eventId);
+  if (delError) {
+    if (
+      delError.message.includes("Could not find the table") ||
+      delError.message.includes("does not exist")
+    ) {
+      return;
+    }
+    throw delError;
+  }
+
+  const unique = [...new Set(memberIds)];
+  if (unique.length === 0) return;
+
+  const { error: insError } = await supabase.from("calendar_event_members").insert(
+    unique.map((member_id) => ({ event_id: eventId, member_id })),
+  );
+  if (insError) throw insError;
+}
+
 async function fetchFamilyCalendarEvents(): Promise<FamilyCalendarEvent[]> {
   const { data, error } = await supabase
     .from("family_calendar_events")
@@ -43,7 +90,7 @@ async function fetchFamilyCalendarEvents(): Promise<FamilyCalendarEvent[]> {
 
   if (error) throw error;
 
-  const rows = data ?? [];
+  let rows = data ?? [];
   if (rows.length === 0) {
     await migrateCalendarEventsFromLocalStorage();
     const { data: again, error: againError } = await supabase
@@ -51,10 +98,11 @@ async function fetchFamilyCalendarEvents(): Promise<FamilyCalendarEvent[]> {
       .select("*")
       .order("event_date", { ascending: true });
     if (againError) throw againError;
-    return (again ?? []).map(rowToEvent);
+    rows = again ?? [];
   }
 
-  return rows.map(rowToEvent);
+  const memberMap = await fetchEventMemberMap();
+  return rows.map((row) => rowToEvent(row, memberMap.get(row.id) ?? []));
 }
 
 export function useFamilyCalendarEvents() {
@@ -73,6 +121,7 @@ export type SaveFamilyEventInput = {
   eventKind: FamilyEventKind;
   colorClass: string;
   notes?: string | null;
+  memberIds?: string[];
 };
 
 export function useFamilyCalendarEventsMutations() {
@@ -87,6 +136,7 @@ export function useFamilyCalendarEventsMutations() {
           : input.eventKind === "birthday"
             ? "general"
             : "general";
+      const memberIds = input.memberIds ?? [];
 
       if (input.id) {
         const row: FamilyCalendarEventUpdate = {
@@ -105,7 +155,8 @@ export function useFamilyCalendarEventsMutations() {
           .select()
           .single();
         if (error) throw error;
-        return rowToEvent(data);
+        await syncEventMembers(data.id, memberIds);
+        return rowToEvent(data, memberIds);
       }
 
       const row: FamilyCalendarEventInsert = {
@@ -123,7 +174,8 @@ export function useFamilyCalendarEventsMutations() {
         .select()
         .single();
       if (error) throw error;
-      return rowToEvent(data);
+      await syncEventMembers(data.id, memberIds);
+      return rowToEvent(data, memberIds);
     },
     onSuccess: invalidate,
   });

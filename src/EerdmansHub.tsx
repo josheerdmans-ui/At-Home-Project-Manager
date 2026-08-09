@@ -2,10 +2,10 @@ import {
   useState,
   useEffect,
   useRef,
+  useMemo,
   type MouseEvent as ReactMouseEvent,
   type TouchEvent as ReactTouchEvent,
 } from "react";
-import type { LucideIcon } from "lucide-react";
 import { HomeNotificationsWidget } from "./components/HomeNotificationsWidget";
 import { GarageRoom } from "./rooms/garage/GarageRoom";
 import { HouseProjectsRoom } from "./rooms/projects/HouseProjectsRoom";
@@ -14,10 +14,15 @@ import { CalendarRoom } from "./rooms/calendar/CalendarRoom";
 import { ImageVaultRoom } from "./rooms/image-vault/ImageVaultRoom";
 import { VaultRoom } from "./rooms/vault/VaultRoom";
 import { BankingRoom } from "./rooms/banking/BankingRoom";
+import { RosterRoom } from "./rooms/roster/RosterRoom";
+import { WallDisplayShell } from "./display/WallDisplayShell";
 import { HomeCameraCapture } from "./components/HomeCameraCapture";
 import { PhotoKindBubbles } from "./components/PhotoKindBubbles";
 import type { ImagePhotoKind } from "../types";
 import { useStandaloneApp } from "./hooks/useStandaloneApp";
+import { useFamilyCalendarEvents } from "./rooms/calendar/useFamilyCalendarEvents";
+import { formatTimeForDisplay } from "./rooms/calendar/calendar-ui";
+import { toDateKey } from "./lib/calendar-aggregate";
 import {
   Wifi,
   ChefHat,
@@ -31,6 +36,7 @@ import {
   Camera,
   Images,
   Wallet,
+  Monitor,
 } from "lucide-react";
 
 // Schedule logic
@@ -129,31 +135,43 @@ function TopNavigation({
 }
 
 function TodayWidget() {
-  const events = [
-    { time: "5:00 PM", title: "Internet turns ON", type: "network" },
-    { time: "6:30 PM", title: "Dinner (Tacos)", type: "meal" },
-    { time: "8:00 PM", title: "Family Movie", type: "roster" },
-  ];
+  const { data: events = [], isLoading, error } = useFamilyCalendarEvents();
+  const todayKey = toDateKey(new Date());
+
+  const todayEvents = useMemo(() => {
+    return events
+      .filter((e) => e.date === todayKey)
+      .slice()
+      .sort((a, b) => (a.time ?? "").localeCompare(b.time ?? ""));
+  }, [events, todayKey]);
 
   return (
     <div className="w-full rounded-3xl border border-white/60 bg-white/40 p-6 shadow-[0_8px_30px_rgb(0,0,0,0.08)] backdrop-blur-2xl pointer-events-none">
       <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
         <CalendarDays size={18} className="text-cyan-600" />
-        Today's Timeline
+        Today&apos;s Timeline
       </h3>
-      <div className="space-y-4">
-        {events.map((ev, i) => (
-          <div key={i} className="flex gap-4 items-start">
-            <span className="text-sm font-semibold text-slate-500 w-16 pt-0.5">{ev.time}</span>
-            <div className="flex-1">
-              <div className="w-2 h-2 rounded-full bg-cyan-400 mt-1.5 absolute -ml-[11px]"></div>
-              <div className="border-l-2 border-cyan-200 pl-4 pb-2">
-                <p className="font-medium text-slate-800">{ev.title}</p>
+      {isLoading && <p className="text-sm text-slate-500">Loading…</p>}
+      {error && <p className="text-sm text-rose-600">Could not load events</p>}
+      {!isLoading && !error && todayEvents.length === 0 && (
+        <p className="text-sm text-slate-500">No family events today. Add some in Calendar.</p>
+      )}
+      {!isLoading && !error && todayEvents.length > 0 && (
+        <div className="space-y-4">
+          {todayEvents.map((ev) => (
+            <div key={ev.id} className="flex gap-4 items-start">
+              <span className="text-sm font-semibold text-slate-500 w-20 shrink-0 pt-0.5">
+                {formatTimeForDisplay(ev.time)}
+              </span>
+              <div className="flex-1 min-w-0">
+                <div className="border-l-2 border-cyan-200 pl-4 pb-2">
+                  <p className="font-medium text-slate-800 truncate">{ev.title}</p>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -383,25 +401,22 @@ function NetworkRoom() {
   );
 }
 
-function StubRoom({ title, icon: Icon, desc }: { title: string; icon: LucideIcon; desc: string }) {
-  return (
-    <div className="p-12 max-w-7xl mx-auto h-full flex flex-col">
-      <div className="flex items-center gap-4 mb-8">
-        <div className="p-4 bg-cyan-100 rounded-2xl text-cyan-700">
-          <Icon size={40} />
-        </div>
-        <h1 className="text-4xl font-black text-slate-800 tracking-tight">{title}</h1>
-      </div>
-      <div className="flex-1 bg-white/40 backdrop-blur-xl border border-white/60 shadow-xl rounded-3xl p-8 flex items-center justify-center">
-        <p className="text-2xl text-slate-500 font-medium text-center max-w-lg">{desc}</p>
-      </div>
-    </div>
-  );
-}
+const WALL_HUB_ROOMS = [
+  { id: "network", label: "Network" },
+  { id: "kitchen", label: "Kitchen" },
+  { id: "garage", label: "Garage" },
+  { id: "vault", label: "Vault" },
+  { id: "image_vault", label: "Image Vault" },
+  { id: "projects", label: "Projects" },
+  { id: "banking", label: "Banking" },
+  { id: "roster", label: "Roster" },
+  { id: "calendar", label: "Calendar room" },
+];
 
 export default function EerdmansHub() {
   useStandaloneApp();
   const [activeRoom, setActiveRoom] = useState<RoomId | null>(null);
+  const [wallDisplay, setWallDisplay] = useState(false);
   const [showPhotoKindPick, setShowPhotoKindPick] = useState(false);
   const [captureKind, setCaptureKind] = useState<ImagePhotoKind | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -430,13 +445,7 @@ export default function EerdmansHub() {
       case "banking":
         return <BankingRoom />;
       case "roster":
-        return (
-          <StubRoom
-            title="Family Roster"
-            icon={Users}
-            desc="Shared bulletin board and family synchronization."
-          />
-        );
+        return <RosterRoom />;
       case "calendar":
         return <CalendarRoom onGoBack={() => setActiveRoom(null)} />;
       default:
@@ -494,6 +503,15 @@ export default function EerdmansHub() {
 
             <button
               type="button"
+              onClick={() => setWallDisplay(true)}
+              className="fixed top-8 right-8 z-50 flex items-center gap-2 rounded-full border border-white/80 bg-white/90 px-5 py-3 font-bold text-slate-800 shadow-[0_8px_30px_rgb(0,0,0,0.12)] backdrop-blur-xl transition hover:bg-orange-500 hover:text-white"
+            >
+              <Monitor size={20} />
+              Wall display
+            </button>
+
+            <button
+              type="button"
               onClick={() => {
                 setCaptureKind(null);
                 setShowPhotoKindPick((v) => !v);
@@ -524,6 +542,17 @@ export default function EerdmansHub() {
           </>
         )}
       </div>
+
+      {wallDisplay && (
+        <WallDisplayShell
+          onExit={() => setWallDisplay(false)}
+          onOpenRoom={(roomId) => {
+            setWallDisplay(false);
+            setActiveRoom(roomId as RoomId);
+          }}
+          rooms={WALL_HUB_ROOMS}
+        />
+      )}
     </div>
   );
 }
