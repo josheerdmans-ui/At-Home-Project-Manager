@@ -96,7 +96,15 @@ export function LeagueHub({ onBackToChooser }: Props) {
           platform,
         },
       });
-      if (error) throw error;
+      if (error) {
+        const msg = error.message || "Edge Function request failed";
+        if (/failed to send a request/i.test(msg) || /fetch/i.test(msg)) {
+          throw new Error(
+            "Could not reach the lol-riot Edge Function. Deploy it with: npx supabase functions deploy lol-riot — and set the RIOT_API_KEY secret in Supabase → Edge Functions → Secrets.",
+          );
+        }
+        throw new Error(msg);
+      }
       if (data?.error) throw new Error(data.error);
       if (!data?.account) throw new Error("Empty response from League lookup");
       return data;
