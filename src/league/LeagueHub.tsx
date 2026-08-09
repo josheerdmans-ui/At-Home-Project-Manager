@@ -58,7 +58,7 @@ type DuoBundle = {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type DuoProcessed = any;
 
-const STORAGE_KEY = "league-duo-ids-v1";
+const STORAGE_KEY = "league-duo-ids-v2";
 
 const PLATFORMS: { id: LolPlatform; label: string }[] = [
   { id: "na1", label: "NA" },
@@ -79,7 +79,7 @@ const PLATFORMS: { id: LolPlatform; label: string }[] = [
 
 const DEFAULTS = {
   meRiotId: "yellowcardfan69#6767",
-  friendRiotId: "NicklebackFan69#NA1",
+  friendRiotId: "flacctay#NA1",
   platform: "na1" as LolPlatform,
 };
 
@@ -164,7 +164,7 @@ export function LeagueHub({ onBackToChooser }: Props) {
     );
 
     try {
-      setStatus("Downloading duo matches from Riot (this can take ~30–60s)…");
+      setStatus("Downloading duo matches from Riot (can take a couple minutes for ~20 games)…");
       const { data: bundle, error: fnError } = await supabase.functions.invoke<DuoBundle>(
         "lol-riot",
         {
@@ -173,7 +173,7 @@ export function LeagueHub({ onBackToChooser }: Props) {
             riotId: meRiotId.trim(),
             friendRiotId: friendRiotId.trim(),
             platform,
-            matchCount: 12,
+            matchCount: 40,
           },
         },
       );

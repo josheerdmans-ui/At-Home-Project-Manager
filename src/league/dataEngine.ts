@@ -58,6 +58,7 @@ export const processData = (matches, timelines, mePuuid, friendPuuid) => {
     const timeline = timelines[index];
 
     if (me && fr) {
+      if (duoGames >= 20) return;
       duoGames++;
       const myTeam = me.teamId;
       const enemies = p.filter(x => x.teamId !== myTeam);

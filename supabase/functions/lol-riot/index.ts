@@ -237,7 +237,7 @@ Deno.serve(async (req) => {
       frMastery = [];
     }
 
-    const count = Math.min(Math.max(body.matchCount ?? 12, 5), 15);
+    const count = Math.min(Math.max(body.matchCount ?? 40, 5), 40);
     const latestIds = await riotGet<string[]>(
       regional,
       `/lol/match/v5/matches/by-puuid/${encodeURIComponent(me.puuid)}/ids?start=0&count=${count}`,
@@ -246,30 +246,49 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Riot API busy fetching match list. Try again in a minute." }, 503);
     }
 
-    const matches: unknown[] = [];
-    const timelines: unknown[] = [];
+    type MatchShape = {
+      info?: {
+        participants?: Array<{ puuid: string }>;
+      };
+      metadata?: { matchId?: string };
+    };
 
+    const duoMatches: MatchShape[] = [];
     for (const id of latestIds) {
-      await delay(700);
+      if (duoMatches.length >= 20) break;
+      await delay(500);
       try {
-        const matchData = await riotGet<unknown>(
+        const matchData = await riotGet<MatchShape>(
           regional,
           `/lol/match/v5/matches/${encodeURIComponent(id)}`,
         );
-        await delay(700);
-        let timelineData: unknown = null;
-        try {
-          timelineData = await riotGet<unknown>(
-            regional,
-            `/lol/match/v5/matches/${encodeURIComponent(id)}/timeline`,
-          );
-        } catch {
-          timelineData = null;
-        }
-        matches.push(matchData);
+        const parts = matchData.info?.participants ?? [];
+        const hasMe = parts.some((p) => p.puuid === me.puuid);
+        const hasFr = parts.some((p) => p.puuid === fr.puuid);
+        if (hasMe && hasFr) duoMatches.push(matchData);
+      } catch {
+        /* skip */
+      }
+    }
+
+    const matches: unknown[] = [];
+    const timelines: unknown[] = [];
+    for (const matchData of duoMatches) {
+      const id = matchData.metadata?.matchId;
+      matches.push(matchData);
+      if (!id) {
+        timelines.push(null);
+        continue;
+      }
+      await delay(500);
+      try {
+        const timelineData = await riotGet<unknown>(
+          regional,
+          `/lol/match/v5/matches/${encodeURIComponent(id)}/timeline`,
+        );
         timelines.push(timelineData);
       } catch {
-        /* skip bad match */
+        timelines.push(null);
       }
     }
 
