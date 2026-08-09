@@ -1,26 +1,46 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { LayoutDashboard, PieChart, Receipt, Wallet } from "lucide-react";
+import {
+  ArrowLeftRight,
+  FileText,
+  HelpCircle,
+  LayoutDashboard,
+  LogOut,
+  PieChart,
+  Receipt,
+  Send,
+  Settings,
+  Wallet,
+} from "lucide-react";
 import type { BankingAccountRow, BankingTransactionRow } from "../../../types";
 import { DbSetupPanel } from "../../components/DbSetupPanel";
+import { useAuth } from "../../hooks/useAuth";
 import { BANKING_SETUP_SQL } from "../../lib/banking-setup-sql";
-import { AccountsPanel } from "./AccountsPanel";
-import { BankingSpending } from "./BankingSpending";
-import { BankingTransactions } from "./BankingTransactions";
-import { CurrentSpendPanel } from "./CurrentSpendPanel";
-import { RecentTransactionsPanel } from "./RecentTransactionsPanel";
-import { isMissingTableError } from "./banking-utils";
+import { AccountCards } from "./AccountCards";
+import { AccountsManagePanel } from "./AccountsPanel";
+import { BalanceOverview } from "./BalanceOverview";
+import { bank, firstNameFromEmail } from "./banking-ui";
+import {
+  isMissingTableError,
+  summarizeAccounts,
+} from "./banking-utils";
+import { BankingSpending, BankingTransactions } from "./BankingSpending";
+import { ConnectBankButton } from "./ConnectBankButton";
+import { MoneyMovement } from "./MoneyMovement";
+import { ActivityPanel, TransactionsSection } from "./TransactionsSection";
 import {
   useBankingAccounts,
   useBankingMutations,
   useBankingSettings,
   useBankingTransactions,
 } from "./useBanking";
+import { supabase } from "../../lib/supabase";
 
-type NavId = "dashboard" | "spending" | "transactions";
+type NavId = "dashboard" | "spending" | "transactions" | "accounts";
 
 export function BankingRoom() {
   const [nav, setNav] = useState<NavId>("dashboard");
   const didAutoSync = useRef(false);
+  const { user } = useAuth();
   const accountsQ = useBankingAccounts();
   const txsQ = useBankingTransactions();
   const settingsQ = useBankingSettings();
@@ -35,75 +55,92 @@ export function BankingRoom() {
   const transactions = txsQ.data ?? [];
   const hasConnection = accounts.length > 0 || (settingsQ.data?.connection_count ?? 0) > 0;
   const loading = accountsQ.isLoading || txsQ.isLoading;
+  const name = firstNameFromEmail(user?.email) || "there";
 
   useEffect(() => {
     if (didAutoSync.current || !hasConnection || missingTable) return;
     didAutoSync.current = true;
-    void syncNow.mutateAsync().catch(() => {
-      /* panel surfaces errors */
-    });
+    void syncNow.mutateAsync().catch(() => {});
   }, [hasConnection, missingTable, syncNow]);
 
   if (missingTable) {
     return (
-      <div className="flex min-h-full flex-col p-8 sm:p-12">
-        <div className="mb-8 flex items-center gap-4">
-          <div className="rounded-2xl bg-orange-100 p-4 text-orange-600">
-            <Wallet size={40} />
-          </div>
-          <h1 className="text-4xl font-black tracking-tight text-slate-800">Banking</h1>
-        </div>
-        <div className="flex flex-1 items-center justify-center">
-          <DbSetupPanel title="Banking database setup" sql={BANKING_SETUP_SQL} />
-        </div>
+      <div className="flex min-h-full flex-col bg-[#F6F7FB] p-8">
+        <h1 className="mb-6 text-2xl font-bold text-slate-900">Banking</h1>
+        <DbSetupPanel title="Banking database setup" sql={BANKING_SETUP_SQL} />
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-full">
-      <aside className="hidden w-52 shrink-0 flex-col border-r border-white/50 bg-white/30 p-4 backdrop-blur-md sm:flex">
+    <div
+      className="flex min-h-full"
+      style={{ background: bank.bg, fontFamily: "system-ui, -apple-system, sans-serif" }}
+    >
+      <aside className="hidden w-52 shrink-0 flex-col border-r border-slate-200/80 bg-white p-4 sm:flex">
         <div className="mb-6 flex items-center gap-2 px-2">
-          <Wallet size={22} className="text-orange-500" />
-          <span className="text-sm font-black tracking-tight text-slate-800">Banking</span>
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#1A2B88] text-white">
+            <Wallet size={18} />
+          </span>
+          <div>
+            <p className="text-sm font-bold text-slate-900">Banking</p>
+            <p className="text-[10px] text-slate-400">Household</p>
+          </div>
         </div>
-        <nav className="flex flex-col gap-1">
-          <NavButton
+        <nav className="flex flex-col gap-0.5">
+          <NavItem
             active={nav === "dashboard"}
             icon={<LayoutDashboard size={18} />}
             label="Dashboard"
             onClick={() => setNav("dashboard")}
           />
-          <NavButton
+          <NavItem
             active={nav === "spending"}
             icon={<PieChart size={18} />}
             label="Spending"
             onClick={() => setNav("spending")}
           />
-          <NavButton
+          <NavItem
             active={nav === "transactions"}
             icon={<Receipt size={18} />}
             label="Transactions"
             onClick={() => setNav("transactions")}
           />
+          <NavItem
+            active={nav === "accounts"}
+            icon={<Wallet size={18} />}
+            label="Accounts"
+            onClick={() => setNav("accounts")}
+          />
         </nav>
+        <div className="mt-auto space-y-0.5 border-t border-slate-100 pt-4">
+          <NavItem icon={<Settings size={18} />} label="Settings" onClick={() => setNav("accounts")} />
+          <NavItem icon={<HelpCircle size={18} />} label="Help" onClick={() => {}} />
+          <NavItem
+            icon={<LogOut size={18} />}
+            label="Log out"
+            danger
+            onClick={() => void supabase.auth.signOut()}
+          />
+        </div>
       </aside>
 
-      <div className="min-w-0 flex-1">
-        <div className="flex gap-2 border-b border-white/50 bg-white/30 p-3 sm:hidden">
+      <div className="flex min-w-0 flex-1 flex-col">
+        <div className="flex gap-2 border-b border-slate-200 bg-white p-3 sm:hidden">
           {(
             [
-              ["dashboard", "Dashboard"],
-              ["spending", "Spending"],
-              ["transactions", "Transactions"],
+              ["dashboard", "Home"],
+              ["spending", "Spend"],
+              ["transactions", "Txns"],
+              ["accounts", "Accts"],
             ] as const
           ).map(([id, label]) => (
             <button
               key={id}
               type="button"
               onClick={() => setNav(id)}
-              className={`flex-1 rounded-full px-3 py-2 text-xs font-bold ${
-                nav === id ? "bg-orange-500 text-white" : "bg-white/60 text-slate-700"
+              className={`flex-1 rounded-lg py-2 text-xs font-bold ${
+                nav === id ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-500"
               }`}
             >
               {label}
@@ -111,64 +148,125 @@ export function BankingRoom() {
           ))}
         </div>
 
-        {loading ? (
-          <p className="p-12 text-center text-slate-500">Loading banking…</p>
-        ) : nav === "dashboard" ? (
-          <DashboardView
-            accounts={accounts}
-            transactions={transactions}
-            hasConnection={hasConnection}
-          />
-        ) : nav === "spending" ? (
-          <BankingSpending transactions={transactions} />
-        ) : (
-          <BankingTransactions transactions={transactions} />
-        )}
+        <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
+          {loading ? (
+            <p className="py-20 text-center text-slate-400">Loading banking…</p>
+          ) : nav === "dashboard" ? (
+            <DashboardPage
+              accounts={accounts}
+              transactions={transactions}
+              hasConnection={hasConnection}
+              name={name}
+            />
+          ) : nav === "spending" ? (
+            <BankingSpending transactions={transactions} />
+          ) : nav === "transactions" ? (
+            <BankingTransactions transactions={transactions} />
+          ) : (
+            <div className="mx-auto max-w-md space-y-4">
+              <h1 className="text-2xl font-bold text-slate-900">Accounts</h1>
+              <AccountsManagePanel accounts={accounts} hasConnection={hasConnection} />
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
 }
 
-function DashboardView({
+function DashboardPage({
   accounts,
   transactions,
   hasConnection,
+  name,
 }: {
   accounts: BankingAccountRow[];
   transactions: BankingTransactionRow[];
   hasConnection: boolean;
+  name: string;
 }) {
+  const summary = summarizeAccounts(accounts);
+
   return (
-    <div className="p-4 sm:p-8">
-      <div className="mb-6 flex flex-wrap items-center gap-4 sm:hidden">
-        <div className="rounded-2xl bg-orange-100 p-3 text-orange-600">
-          <Wallet size={28} />
+    <div className="space-y-4 sm:space-y-5">
+      {/* Top actions — visual parity with mock */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-xs font-medium text-slate-400">Welcome back</p>
+          <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">{name}</h1>
         </div>
-        <h1 className="text-2xl font-black text-slate-800">Dashboard</h1>
+        <div className="flex flex-wrap gap-2">
+          {(
+            [
+              ["Send", true],
+              ["Request", false],
+              ["Transfer", false],
+              ["Deposit", false],
+            ] as const
+          ).map(([label, primary]) => (
+            <button
+              key={label}
+              type="button"
+              className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition sm:text-sm ${
+                primary
+                  ? "bg-slate-900 text-white"
+                  : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+              }`}
+              title="Coming soon"
+            >
+              {label === "Send" ? <Send size={14} /> : <ArrowLeftRight size={14} />}
+              {label}
+            </button>
+          ))}
+          <button
+            type="button"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 sm:text-sm"
+            title="Coming soon"
+          >
+            <FileText size={14} />
+            Pay Bill
+          </button>
+        </div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2 lg:gap-6">
-        <div className="min-h-[280px]">
-          <CurrentSpendPanel transactions={transactions} />
+      {!hasConnection && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4">
+          <p className="text-sm text-slate-500">Link bank & card to populate this dashboard.</p>
+          <ConnectBankButton />
         </div>
-        <div className="min-h-[280px]">
-          <AccountsPanel accounts={accounts} hasConnection={hasConnection} />
+      )}
+
+      {/* Main 2-col grid */}
+      <div className="grid gap-4 lg:grid-cols-12 lg:gap-5">
+        {/* Left column */}
+        <div className="space-y-4 lg:col-span-8">
+          <BalanceOverview
+            transactions={transactions}
+            checkingBalance={summary.checking}
+          />
+          <MoneyMovement transactions={transactions} />
+          <TransactionsSection transactions={transactions} />
         </div>
-        <div className="min-h-[320px] lg:col-span-2">
-          <RecentTransactionsPanel transactions={transactions} limit={25} />
+
+        {/* Right column */}
+        <div className="space-y-4 lg:col-span-4">
+          <AccountCards accounts={accounts} hasConnection={hasConnection} />
+          <ActivityPanel transactions={transactions} />
         </div>
       </div>
     </div>
   );
 }
 
-function NavButton({
+function NavItem({
   active,
+  danger,
   icon,
   label,
   onClick,
 }: {
-  active: boolean;
+  active?: boolean;
+  danger?: boolean;
   icon: ReactNode;
   label: string;
   onClick: () => void;
@@ -179,8 +277,10 @@ function NavButton({
       onClick={onClick}
       className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition ${
         active
-          ? "bg-orange-500/15 text-orange-700"
-          : "text-slate-600 hover:bg-white/50 hover:text-slate-900"
+          ? "bg-slate-900 text-white"
+          : danger
+            ? "text-rose-500 hover:bg-rose-50"
+            : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
       }`}
     >
       {icon}

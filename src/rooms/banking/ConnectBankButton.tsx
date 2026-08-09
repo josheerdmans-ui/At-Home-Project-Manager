@@ -18,15 +18,13 @@ export function ConnectBankButton({ label = "Connect bank", className }: Props) 
     setError(null);
     setBusy(true);
     try {
-      const t = await createLinkToken.mutateAsync();
-      setToken(t);
+      setToken(await createLinkToken.mutateAsync());
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not start Plaid Link");
       setToken(null);
     } finally {
       setBusy(false);
     }
-    // One-shot token load; avoid re-creating link tokens on every render
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -37,12 +35,8 @@ export function ConnectBankButton({ label = "Connect bank", className }: Props) 
   const { open, ready } = usePlaidLink({
     token,
     onSuccess: async (public_token, metadata) => {
-      if (!public_token) {
-        setError("Plaid did not return a public token");
-        return;
-      }
+      if (!public_token) return;
       setBusy(true);
-      setError(null);
       try {
         await exchangePublicToken.mutateAsync({
           public_token,
@@ -68,13 +62,13 @@ export function ConnectBankButton({ label = "Connect bank", className }: Props) 
         onClick={() => open()}
         className={
           className ??
-          "inline-flex items-center gap-2 rounded-full border border-white/80 bg-orange-500 px-5 py-2.5 text-sm font-bold text-white shadow-[0_8px_30px_rgb(0,0,0,0.12)] transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
+          "inline-flex items-center gap-2 rounded-2xl bg-[#6C5DD3] px-5 py-2.5 text-sm font-bold text-white shadow-[0_8px_24px_rgba(108,93,211,0.35)] transition hover:bg-[#5B4FC9] disabled:opacity-50"
         }
       >
         {busy || !ready ? <Loader2 size={16} className="animate-spin" /> : <Link2 size={16} />}
         {busy ? "Working…" : label}
       </button>
-      {error && <p className="max-w-md text-xs text-red-600">{error}</p>}
+      {error && <p className="text-xs text-red-500">{error}</p>}
     </div>
   );
 }

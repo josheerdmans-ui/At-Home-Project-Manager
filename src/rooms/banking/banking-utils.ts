@@ -151,7 +151,22 @@ export type AccountSummary = {
   hasChecking: boolean;
   hasCard: boolean;
   hasSavings: boolean;
+  checkingAccounts: BankingAccountRow[];
+  cardAccounts: BankingAccountRow[];
+  savingsAccounts: BankingAccountRow[];
 };
+
+export function accountBucket(a: BankingAccountRow): "checking" | "card" | "savings" | "other" {
+  const sub = (a.subtype ?? "").toLowerCase();
+  const type = a.type.toLowerCase();
+  if (type === "credit" || sub.includes("credit") || sub === "paypal") return "card";
+  if (type === "depository" && (sub === "savings" || sub === "hsa" || sub === "cd" || sub === "money market")) {
+    return "savings";
+  }
+  if (type === "depository") return "checking";
+  if (type === "loan") return "other";
+  return "checking";
+}
 
 export function summarizeAccounts(accounts: BankingAccountRow[]): AccountSummary {
   let checking = 0;
@@ -160,26 +175,25 @@ export function summarizeAccounts(accounts: BankingAccountRow[]): AccountSummary
   let hasChecking = false;
   let hasCard = false;
   let hasSavings = false;
+  const checkingAccounts: BankingAccountRow[] = [];
+  const cardAccounts: BankingAccountRow[] = [];
+  const savingsAccounts: BankingAccountRow[] = [];
 
   for (const a of accounts) {
     const bal = a.current_balance ?? 0;
-    const sub = (a.subtype ?? "").toLowerCase();
-    const type = a.type.toLowerCase();
-
-    if (type === "credit" || sub.includes("credit") || sub === "paypal") {
+    const bucket = accountBucket(a);
+    if (bucket === "card") {
       card += Math.abs(bal);
       hasCard = true;
-    } else if (type === "depository" && (sub === "savings" || sub === "hsa" || sub === "cd" || sub === "money market")) {
+      cardAccounts.push(a);
+    } else if (bucket === "savings") {
       savings += bal;
       hasSavings = true;
-    } else if (type === "depository") {
+      savingsAccounts.push(a);
+    } else if (bucket === "checking") {
       checking += bal;
       hasChecking = true;
-    } else if (type === "loan") {
-      // skip loans for net cash
-    } else {
-      checking += bal;
-      hasChecking = true;
+      checkingAccounts.push(a);
     }
   }
 
@@ -191,6 +205,9 @@ export function summarizeAccounts(accounts: BankingAccountRow[]): AccountSummary
     hasChecking,
     hasCard,
     hasSavings,
+    checkingAccounts,
+    cardAccounts,
+    savingsAccounts,
   };
 }
 
@@ -216,6 +233,120 @@ export function categorySpendForMonth(
   return [...map.entries()]
     .map(([category, amount]) => ({ category, amount }))
     .sort((a, b) => b.amount - a.amount);
+}
+
+export type MonthFlow = {
+  key: string;
+  label: string;
+  monthIndex: number;
+  year: number;
+  spend: number;
+  income: number;
+};
+
+/** Calendar months for a full year (Jan–Dec) of the given year. */
+export function yearMonthlyFlow(txs: BankingTransactionRow[], year = new Date().getFullYear()): MonthFlow[] {
+  const months: MonthFlow[] = [];
+  for (let m = 0; m < 12; m++) {
+    const d = new Date(year, m, 1);
+    const key = `${year}-${String(m + 1).padStart(2, "0")}`;
+    months.push({
+      key,
+      label: d.toLocaleDateString("en-US", { month: "short" }),
+      monthIndex: m,
+      year,
+      spend: 0,
+      income: 0,
+    });
+  }
+  const byKey = new Map(months.map((row) => [row.key, row]));
+
+  for (const tx of txs) {
+    if (tx.pending) continue;
+    const key = tx.date.slice(0, 7);
+    const row = byKey.get(key);
+    if (!row) continue;
+    if (tx.amount > 0) row.spend += tx.amount;
+    else if (tx.amount < 0) row.income += Math.abs(tx.amount);
+  }
+  return months;
+}
+
+/** Last `count` calendar months of spend/income for bar charts. */
+export function monthlyCashFlow(txs: BankingTransactionRow[], count = 6, now = new Date()): MonthFlow[] {
+  const months: MonthFlow[] = [];
+  for (let i = count - 1; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    const label = d.toLocaleDateString("en-US", { month: "short" });
+    months.push({
+      key,
+      label,
+      monthIndex: d.getMonth(),
+      year: d.getFullYear(),
+      spend: 0,
+      income: 0,
+    });
+  }
+  const byKey = new Map(months.map((m) => [m.key, m]));
+
+  for (const tx of txs) {
+    if (tx.pending) continue;
+    const key = tx.date.slice(0, 7);
+    const row = byKey.get(key);
+    if (!row) continue;
+    if (tx.amount > 0) row.spend += tx.amount;
+    else if (tx.amount < 0) row.income += Math.abs(tx.amount);
+  }
+  return months;
+}
+
+export function monthIncomeTotal(
+  txs: BankingTransactionRow[],
+  monthStart: Date,
+  dayEnd: Date,
+): number {
+  const startKey = toDateKey(monthStart);
+  const endKey = toDateKey(dayEnd);
+  let sum = 0;
+  for (const tx of txs) {
+    if (!isIncome(tx)) continue;
+    if (tx.date < startKey || tx.date > endKey) continue;
+    sum += Math.abs(tx.amount);
+  }
+  return sum;
+}
+
+export type MetricPair = { thisMonth: number; lastMonth: number };
+
+export function earningsSpendMetrics(txs: BankingTransactionRow[], now = new Date()): {
+  earnings: MetricPair;
+  spending: MetricPair;
+} {
+  const thisStart = startOfMonth(now);
+  const thisEnd = endOfDay(now);
+  const lastDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const lastStart = startOfMonth(lastDate);
+  const lastEnd = endOfDay(new Date(lastDate.getFullYear(), lastDate.getMonth() + 1, 0));
+
+  return {
+    earnings: {
+      thisMonth: monthIncomeTotal(txs, thisStart, thisEnd),
+      lastMonth: monthIncomeTotal(txs, lastStart, lastEnd),
+    },
+    spending: {
+      thisMonth: monthSpendTotal(txs, thisStart, thisEnd),
+      lastMonth: monthSpendTotal(txs, lastStart, lastEnd),
+    },
+  };
+}
+
+export function primaryCreditCard(accounts: BankingAccountRow[]): BankingAccountRow | null {
+  const cards = accounts.filter((a) => {
+    const sub = (a.subtype ?? "").toLowerCase();
+    return a.type.toLowerCase() === "credit" || sub.includes("credit");
+  });
+  return cards[0] ?? null;
 }
 
 export function groupTransactionsByDate(
