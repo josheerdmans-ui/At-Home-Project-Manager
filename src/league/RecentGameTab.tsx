@@ -1,6 +1,6 @@
 // @ts-nocheck
 /**
- * Recent-game scoreboard header matching u.gg / post-game analytics layout.
+ * Recent-game scoreboard (u.gg-style) + deep single-match stats for you & duo.
  */
 import React, { useMemo, useState } from "react";
 import {
@@ -220,6 +220,324 @@ function PlayerRow({ p, version, duration, highlight, side }) {
   );
 }
 
+function fmtStat(n) {
+  if (n == null || Number.isNaN(n)) return "—";
+  if (typeof n === "boolean") return n ? "Yes" : "No";
+  if (typeof n === "number") {
+    if (!Number.isFinite(n)) return "—";
+    if (Math.abs(n) >= 1000) return Math.round(n).toLocaleString();
+    if (Number.isInteger(n)) return String(n);
+    return n.toFixed(2);
+  }
+  return String(n);
+}
+
+function pctStat(n) {
+  if (n == null || Number.isNaN(n)) return "—";
+  return `${(Number(n) * 100).toFixed(1)}%`;
+}
+
+function kdaOf(p) {
+  return ((p.kills + p.assists) / Math.max(1, p.deaths || 1)).toFixed(2);
+}
+
+function DeepStat({ label, value }) {
+  return (
+    <div className="flex min-h-[64px] flex-col justify-center rounded border border-slate-800 bg-[#0a101c] px-2 py-2 text-center">
+      <div className="text-sm font-black tabular-nums text-white">{value}</div>
+      <div className="mt-0.5 text-[9px] font-bold uppercase tracking-wide text-slate-500">{label}</div>
+    </div>
+  );
+}
+
+function buildDeepStats(p, durationSec) {
+  const c = p.challenges || {};
+  const totalCs = csOf(p);
+  const mins = Math.max(1 / 60, (durationSec || p.timePlayed || 1) / 60);
+  const dpm = c.damagePerMinute ?? p.totalDamageDealtToChampions / mins;
+  const gpm = c.goldPerMinute ?? p.goldEarned / mins;
+  const vpm = c.visionScorePerMinute ?? p.visionScore / mins;
+  const ccPerMin = (p.totalTimeCCDealt || 0) / mins;
+
+  return {
+    Combat: [
+      ["Kills", p.kills],
+      ["Deaths", p.deaths],
+      ["Assists", p.assists],
+      ["KDA", kdaOf(p)],
+      ["Kill participation", pctStat(c.killParticipation)],
+      ["Solo kills", c.soloKills ?? 0],
+      ["Double kills", p.doubleKills],
+      ["Triple kills", p.tripleKills],
+      ["Quadra kills", p.quadraKills],
+      ["Penta kills", p.pentaKills],
+      ["Largest multi-kill", p.largestMultiKill],
+      ["Largest killing spree", p.largestKillingSpree],
+      ["Killing sprees", p.killingSprees],
+      ["First blood", p.firstBloodKill],
+      ["First blood assist", p.firstBloodAssist],
+      ["Takedowns", c.takedowns ?? p.kills + p.assists],
+      ["Takedowns before 20", c.takedownsBefore20Minute ?? c.takedownsFirst25Minutes],
+      ["Outnumbered kills", c.killsUnderOwnTurret ?? c.outnumberedKills],
+      ["Quick solo kills", c.quickSoloKills],
+      ["Teleport takedowns", c.teleportTakedowns],
+    ],
+    Damage: [
+      ["Dmg to champions", p.totalDamageDealtToChampions],
+      ["Physical dmg to champs", p.physicalDamageDealtToChampions],
+      ["Magic dmg to champs", p.magicDamageDealtToChampions],
+      ["True dmg to champs", p.trueDamageDealtToChampions],
+      ["Damage / min", dpm],
+      ["Team damage %", pctStat(c.teamDamagePercentage)],
+      ["Damage share", c.teamDamagePercentage != null ? Math.round(c.teamDamagePercentage * 100) : "—"],
+      ["Largest crit", p.largestCriticalStrike],
+      ["Total damage dealt", p.totalDamageDealt],
+      ["Physical damage dealt", p.physicalDamageDealt],
+      ["Magic damage dealt", p.magicDamageDealt],
+      ["True damage dealt", p.trueDamageDealt],
+      ["Damage to turrets", p.damageDealtToTurrets],
+      ["Damage to objectives", p.damageDealtToObjectives],
+      ["Damage to buildings", p.damageDealtToBuildings],
+      ["Spell 1 casts", p.spell1Casts],
+      ["Spell 2 casts", p.spell2Casts],
+      ["Spell 3 casts", p.spell3Casts],
+      ["Spell 4 casts", p.spell4Casts],
+      ["Summoner 1 casts", p.summoner1Casts],
+      ["Summoner 2 casts", p.summoner2Casts],
+    ],
+    Survivability: [
+      ["Damage taken", p.totalDamageTaken],
+      ["Physical taken", p.physicalDamageTaken],
+      ["Magic taken", p.magicDamageTaken],
+      ["True taken", p.trueDamageTaken],
+      ["Self mitigated", p.damageSelfMitigated],
+      ["Damage taken % of team", pctStat(c.damageTakenOnTeamPercentage)],
+      ["Total heal", p.totalHeal],
+      ["Heals on teammates", p.totalHealsOnTeammates],
+      ["Shielded teammates", p.totalDamageShieldedOnTeammates],
+      ["Time CCing others", p.timeCCingOthers],
+      ["Total time CC dealt", p.totalTimeCCDealt],
+      ["CC / min", ccPerMin],
+      ["Total time spent dead", p.totalTimeSpentDead],
+      ["Longest time living", p.longestTimeSpentLiving],
+      ["Survived single target", c.survivedSingleTarget],
+    ],
+    Economy: [
+      ["Gold earned", p.goldEarned],
+      ["Gold spent", p.goldSpent],
+      ["Gold / min", gpm],
+      ["Damage / gold", p.goldEarned ? (p.totalDamageDealtToChampions / p.goldEarned).toFixed(2) : "—"],
+      ["CS (lane + jungle)", totalCs],
+      ["Lane minions", p.totalMinionsKilled],
+      ["Neutral monsters", p.neutralMinionsKilled],
+      ["Ally jungle CS", p.totalAllyJungleMinionsKilled],
+      ["Enemy jungle CS", p.totalEnemyJungleMinionsKilled],
+      ["CS / min", (totalCs / mins).toFixed(1)],
+      ["Max CS lead vs lane", c.maxCsAdvantageOnLaneOpponent],
+      ["Max level lead vs lane", c.maxLevelLeadLaneOpponent],
+      ["Champ level", p.champLevel],
+      ["Champ XP", p.champExperience],
+      ["Items purchased", p.itemsPurchased],
+      ["Consumables purchased", p.consumablesPurchased],
+    ],
+    Vision: [
+      ["Vision score", p.visionScore],
+      ["Vision / min", vpm],
+      ["Wards placed", p.wardsPlaced],
+      ["Wards killed", p.wardsKilled],
+      ["Control wards bought", p.visionWardsBoughtInGame],
+      ["Sight wards bought", p.sightWardsBoughtInGame],
+      ["Detector wards placed", p.detectorWardsPlaced],
+      ["Control wards placed", c.controlWardsPlaced ?? p.detectorWardsPlaced],
+      ["Ward takedowns", c.wardTakedowns],
+      ["Ward takedowns <20", c.wardTakedownsBefore20M],
+      ["Vision advantage vs lane", c.visionScoreAdvantageLaneOpponent],
+      ["Stealth wards placed", c.stealthWardsPlaced],
+      ["Wards guarded", c.wardsGuarded],
+    ],
+    Objectives: [
+      ["Turret kills", p.turretKills],
+      ["Turret takedowns", p.turretTakedowns],
+      ["Inhibitor kills", p.inhibitorKills],
+      ["Inhibitor takedowns", p.inhibitorTakedowns],
+      ["Dragon kills", p.dragonKills],
+      ["Baron kills", p.baronKills],
+      ["Herald kills", c.riftHeraldTakedowns ?? p.objectivesStolen],
+      ["Objective dmg", p.damageDealtToObjectives],
+      ["First tower", p.firstTowerKill],
+      ["First tower assist", p.firstTowerAssist],
+      ["Turret plates taken", c.turretPlatesTaken],
+      ["Epic monster steals", c.epicMonsterSteals],
+      ["Epic monster stolen w/o smite", c.epicMonsterStolenWithoutSmite],
+      ["Void monsters", c.voidMonsterKill],
+      ["Team baron kills", c.teamBaronKills],
+      ["Team elder kills", c.teamElderDragonKills],
+      ["Team rift herald", c.teamRiftHeraldKills],
+    ],
+    "Early / Mid game": [
+      ["Lane gold/XP advantage", c.laningPhaseGoldExpAdvantage],
+      ["Early lane gold/XP adv.", c.earlyLaningPhaseGoldExpAdvantage],
+      ["Jungle CS before 10", c.jungleCsBefore10Minutes],
+      ["CS before 10", c.laneMinionsFirst10Minutes],
+      ["Gold @ 14", c.goldAt14 ?? c.goldDiffAt14],
+      ["XP @ 14", c.xpAt14 ?? c.xpDiffAt14],
+      ["CS @ 14", c.laneMinionsAt14 ?? c.csAt14],
+      ["Kills on laners early (jg)", c.killsOnLanersEarlyJungleAsJungler],
+      ["Takedowns after gank", c.takedownsAfterGainingLevelAdvantage],
+      ["First turret killed time", c.firstTurretKilledTime],
+      ["Earliest dragon", c.earliestDragonTakedown],
+      ["Skillshots dodged", c.skillshotsDodged],
+      ["Skillshots hit", c.skillshotsHit],
+      ["Land skillshots early", c.landSkillShotsEarlyGame],
+      ["Dodge skillshots window", c.dodgeSkillShotsSmallWindow],
+    ],
+    Utility: [
+      ["Crowd control score", p.timeCCingOthers],
+      ["Immobilize + kill", c.immobilizeAndKillWithAlly],
+      ["Knock enemies into team", c.knockEnemyIntoTeamAndKill],
+      ["Save ally from death", c.saveAllyFromDeath],
+      ["Survived 3 immobilizes", c.survivedThreeImmobilizesInFight],
+      ["Unseen recalls", c.unseenRecalls],
+      ["Enemy champion immobilizations", c.enemyChampionImmobilizations],
+      ["Multikills after flash", c.multikillsAfterAggressiveFlash],
+      ["Took large dmg survived", c.tookLargeDamageSurvived],
+      ["Game ended in surrender", p.gameEndedInSurrender],
+      ["Early surrender", p.gameEndedInEarlySurrender],
+      ["Team early surrendered", p.teamEarlySurrendered],
+    ],
+    Pings: [
+      ["All-in pings", p.allInPings],
+      ["Assist me", p.assistMePings],
+      ["Bait pings", p.baitPings],
+      ["Command", p.commandPings],
+      ["Enemy missing", p.enemyMissingPings],
+      ["Enemy vision", p.enemyVisionPings],
+      ["Get back", p.getBackPings],
+      ["On my way", p.onMyWayPings],
+      ["Need vision", p.needVisionPings],
+      ["Push", p.pushPings],
+      ["Vision cleared", p.visionClearedPings],
+      ["Danger", p.dangerPings],
+      ["Hold", p.holdPings],
+    ],
+  };
+}
+
+function PlayerDeepStats({ p, label, accent, version, duration }) {
+  if (!p) {
+    return (
+      <div className="rounded-md border border-slate-800 bg-[#0a101c] p-6 text-center text-sm text-slate-500">
+        No player data
+      </div>
+    );
+  }
+  const name = p.riotIdGameName || p.summonerName || "Player";
+  const tag = p.riotIdTagline || "";
+  const groups = buildDeepStats(p, duration);
+
+  return (
+    <div className="rounded-md border border-slate-800 bg-[#0a101c] p-4">
+      <div className="mb-4 flex items-center gap-3 border-b border-slate-800 pb-3">
+        <img
+          alt=""
+          className="h-12 w-12 rounded border border-slate-700 object-cover"
+          src={`https://ddragon.leagueoflegends.com/cdn/${version}/img/champion/${p.championName}.png`}
+        />
+        <div>
+          <div className="text-[10px] font-bold uppercase tracking-wider" style={{ color: accent }}>
+            {label}
+          </div>
+          <div className="font-black text-white">
+            {name}
+            {tag ? <span className="font-semibold text-slate-500"> #{tag}</span> : null}
+          </div>
+          <div className="text-xs font-semibold text-slate-400">
+            {p.championName} · {p.teamPosition || p.individualPosition || "?"} ·{" "}
+            <span className={p.win ? "text-emerald-400" : "text-rose-400"}>
+              {p.win ? "Victory" : "Defeat"}
+            </span>
+          </div>
+          <div className="text-sm font-black text-white">
+            {p.kills}/{p.deaths}/{p.assists}{" "}
+            <span className="font-bold text-slate-500">KDA {kdaOf(p)}</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        {Object.entries(groups).map(([title, rows]) => (
+          <div key={title}>
+            <div className="mb-2 text-[10px] font-black uppercase tracking-wider text-cyan-400/80">
+              {title}
+            </div>
+            <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-4">
+              {rows.map(([rowLabel, value]) => (
+                <DeepStat
+                  key={rowLabel}
+                  label={rowLabel}
+                  value={
+                    typeof value === "boolean"
+                      ? fmtStat(value)
+                      : typeof value === "string"
+                        ? value
+                        : fmtStat(value)
+                  }
+                />
+              ))}
+            </div>
+          </div>
+        ))}
+
+        <div>
+          <div className="mb-2 text-[10px] font-black uppercase tracking-wider text-cyan-400/80">
+            Items
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {[p.item0, p.item1, p.item2, p.item3, p.item4, p.item5, p.item6].map((id, i) =>
+              id ? (
+                <img
+                  key={`${id}-${i}`}
+                  alt=""
+                  className="h-9 w-9 rounded border border-slate-700 bg-slate-950"
+                  src={`https://ddragon.leagueoflegends.com/cdn/${version}/img/item/${id}.png`}
+                />
+              ) : (
+                <div key={`e-${i}`} className="h-9 w-9 rounded border border-slate-800 bg-slate-950/80" />
+              ),
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ThisGameDeepStats({ game, version }) {
+  return (
+    <div className="space-y-4 p-5">
+      <div className="text-sm font-bold text-slate-300">
+        This game only — full Match-V5 + Challenges breakdown
+      </div>
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+        <PlayerDeepStats
+          p={game.me}
+          label="You"
+          accent={BLUE}
+          version={version}
+          duration={game.gameDuration}
+        />
+        <PlayerDeepStats
+          p={game.friend}
+          label="Duo partner"
+          accent="#ff69b4"
+          version={version}
+          duration={game.gameDuration}
+        />
+      </div>
+    </div>
+  );
+}
+
 export default function RecentGameTab({ data }) {
   const game = data.latestGame;
   const version = data.version || "14.22.1";
@@ -327,7 +645,7 @@ export default function RecentGameTab({ data }) {
         </div>
 
         <div className="flex items-center gap-6">
-          {["scoreboard", "matchups"].map((t) => (
+          {["scoreboard", "matchups", "stats"].map((t) => (
             <button
               key={t}
               type="button"
@@ -460,7 +778,7 @@ export default function RecentGameTab({ data }) {
         />
       </div>
 
-      {subTab === "scoreboard" ? (
+      {subTab === "scoreboard" && (
         <div>
           {/* Column headers */}
           <div className="grid grid-cols-[2.2fr_1.6fr_0.7fr_0.9fr_1.1fr_1.1fr_0.9fr_0.9fr] gap-2 border-b border-slate-800 bg-[#0a1424] px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-slate-500">
@@ -511,7 +829,9 @@ export default function RecentGameTab({ data }) {
             />
           ))}
         </div>
-      ) : (
+      )}
+
+      {subTab === "matchups" && (
         <div className="grid gap-3 p-5 sm:grid-cols-5">
           {ROLE_ORDER.map((role) => {
             const bp = model.blue.find((p) => (p.teamPosition || p.individualPosition) === role);
@@ -546,6 +866,10 @@ export default function RecentGameTab({ data }) {
             );
           })}
         </div>
+      )}
+
+      {subTab === "stats" && (
+        <ThisGameDeepStats game={game} version={version} />
       )}
     </div>
   );
