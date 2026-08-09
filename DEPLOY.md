@@ -101,8 +101,19 @@ Skip commit if everything is already pushed.
 
 Supabase → **Authentication** → **URL configuration**:
 
-- **Site URL:** `https://YOUR-VERCEL-URL.vercel.app`
-- **Redirect URLs:** add `https://YOUR-VERCEL-URL.vercel.app/**`
+- **Site URL:** `https://YOUR-VERCEL-URL.vercel.app` (or `http://localhost:5173` while developing)
+- **Redirect URLs:** add both of these (required for password reset to open your app):
+  - `https://YOUR-VERCEL-URL.vercel.app/**`
+  - `https://YOUR-VERCEL-URL.vercel.app/`
+  - `http://localhost:5173/**` (local `npm run dev`)
+
+If the reset email lands you on the wrong site or a blank page, the **Site URL / Redirect URLs** are almost always the cause.
+
+### Password reset
+
+1. Login screen → **Forgot password?** → enter email → check inbox (and spam).
+2. Open the link — the app shows **Set new password**.
+3. You can also send a recovery email from Supabase → **Authentication** → **Users** → user row → **Send password recovery**. That only works if **Site URL** and **Redirect URLs** include your hub origin as above.
 
 Save, then test login on the live site.
 
