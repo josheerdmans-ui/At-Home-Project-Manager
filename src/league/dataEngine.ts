@@ -9,6 +9,7 @@ export const processData = (matches, timelines, mePuuid, friendPuuid) => {
     friend: { wins: 0, kills: 0, deaths: 0, assists: 0, dmg: 0, gold: 0, cs: 0, vision: 0, dmgTaken: 0, controlWards: 0, soloKills: 0, soloDeaths: 0, games: 0, gd15: 0, dragons: 0, healing: 0, shielding: 0, role: 'UNKNOWN' },
     enemy: { kills: 0, deaths: 0, assists: 0, dmg: 0, gold: 0, cs: 0, vision: 0, dragons: 0 },
     latestMatchup: { us: { kills: 0, gold: 0, dmg: 0, vision: 0 }, them: { kills: 0, gold: 0, dmg: 0, vision: 0 }, ready: false },
+    latestGame: null,
     laneScoreboard: { me: 0, friend: 0, enemyAdc: 0, enemySupp: 0 },
     champs: { me: {}, friend: {} },
     uniqueChamps: { me: new Set(), friend: new Set() },
@@ -106,6 +107,19 @@ export const processData = (matches, timelines, mePuuid, friendPuuid) => {
          const eVision = (enemyAdc?.visionScore || 0) + (enemySupp?.visionScore || 0);
          stats.latestMatchup.them = { kills: eKills, gold: eGold, dmg: eDmg, vision: eVision };
          stats.latestMatchup.ready = true;
+         stats.latestGame = {
+           matchId: match.metadata?.matchId ?? null,
+           gameMode: match.info.gameMode,
+           queueId: match.info.queueId,
+           gameDuration: match.info.gameDuration,
+           gameStartTimestamp: match.info.gameStartTimestamp,
+           me,
+           friend: fr,
+           allies: p.filter((x) => x.teamId === me.teamId),
+           enemies: p.filter((x) => x.teamId !== me.teamId),
+           enemyAdc: enemyAdc || null,
+           enemySupp: enemySupp || null,
+         };
       }
 
       const date = new Date(match.info.gameStartTimestamp).toISOString().split('T')[0];
@@ -274,6 +288,7 @@ export const processData = (matches, timelines, mePuuid, friendPuuid) => {
   return {
     raw: stats, shame: stats.shame, synergy: stats.synergy, deep: stats.deep, future: stats.future, 
     latestMatchup: stats.latestMatchup,
+    latestGame: stats.latestGame,
     history: stats.history.reverse(), 
     topChamps: { me: sortChamps(stats.champs.me), friend: sortChamps(stats.champs.friend) }, 
     dailyActivity,

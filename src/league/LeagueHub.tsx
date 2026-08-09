@@ -13,6 +13,7 @@ import OverviewTab from "./OverviewTab";
 import SynergyTab from "./SynergyTab";
 import ShameTab from "./ShameTab";
 import FutureTab from "./FutureTab";
+import RecentGameTab from "./RecentGameTab";
 
 type LolPlatform =
   | "na1"
@@ -140,14 +141,14 @@ type Props = {
   onBackToChooser: () => void;
 };
 
-type TabId = "overview" | "synergy" | "shame" | "future";
+type TabId = "recent" | "overview" | "synergy" | "shame" | "future";
 
 export function LeagueHub({ onBackToChooser }: Props) {
   const saved = loadSaved();
   const [meRiotId, setMeRiotId] = useState(saved.meRiotId);
   const [friendRiotId, setFriendRiotId] = useState(saved.friendRiotId);
   const [platform, setPlatform] = useState<LolPlatform>(saved.platform);
-  const [activeTab, setActiveTab] = useState<TabId>("overview");
+  const [activeTab, setActiveTab] = useState<TabId>("recent");
   const [data, setData] = useState<DuoProcessed | null>(null);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState("");
@@ -341,7 +342,7 @@ export function LeagueHub({ onBackToChooser }: Props) {
       {!loading && hasLoaded && data && (
         <>
           <nav className="mx-auto flex max-w-7xl gap-2 overflow-x-auto px-4 py-2 sm:px-6">
-            {(["overview", "synergy", "shame", "future"] as const).map((tab) => (
+            {(["recent", "overview", "synergy", "shame", "future"] as const).map((tab) => (
               <button
                 key={tab}
                 type="button"
@@ -352,12 +353,13 @@ export function LeagueHub({ onBackToChooser }: Props) {
                     : "bg-slate-800 text-slate-400 hover:bg-slate-700"
                 }`}
               >
-                {tab}
+                {tab === "recent" ? "recent game" : tab}
               </button>
             ))}
           </nav>
 
           <main className="mx-auto mt-4 max-w-7xl px-4 pb-20 sm:px-6">
+            {activeTab === "recent" && <RecentGameTab data={data} />}
             {activeTab === "overview" && <OverviewTab data={data} />}
             {activeTab === "synergy" && <SynergyTab data={data} />}
             {activeTab === "shame" && <ShameTab data={data} />}
