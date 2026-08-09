@@ -51,10 +51,21 @@ type MatchDto = {
 };
 
 type LookupBody = {
+  riotId?: string;
   gameName?: string;
   tagLine?: string;
   platform?: string;
 };
+
+function parseRiotId(input: string): { gameName: string; tagLine: string } | null {
+  const raw = input.trim();
+  const hash = raw.lastIndexOf("#");
+  if (hash <= 0 || hash === raw.length - 1) return null;
+  const gameName = raw.slice(0, hash).trim();
+  const tagLine = raw.slice(hash + 1).trim().replace(/^#/, "");
+  if (!gameName || !tagLine) return null;
+  return { gameName, tagLine };
+}
 
 const PLATFORMS = new Set([
   "na1",
@@ -86,12 +97,16 @@ Deno.serve(async (req) => {
     }
 
     const body = (await req.json()) as LookupBody;
-    const gameName = body.gameName?.trim() ?? "";
-    const tagLine = body.tagLine?.trim() ?? "";
+    const fromCombined = body.riotId ? parseRiotId(body.riotId) : null;
+    const gameName = (fromCombined?.gameName ?? body.gameName ?? "").trim();
+    const tagLine = (fromCombined?.tagLine ?? body.tagLine ?? "").trim().replace(/^#/, "");
     const platformRaw = (body.platform ?? "na1").toLowerCase();
 
     if (!gameName || !tagLine) {
-      return jsonResponse({ error: "gameName and tagLine are required" }, 400);
+      return jsonResponse(
+        { error: "Enter a Riot ID like Name#TAG (example: Faker#KR1)" },
+        400,
+      );
     }
     if (!PLATFORMS.has(platformRaw)) {
       return jsonResponse({ error: "Unsupported platform" }, 400);
@@ -111,7 +126,7 @@ Deno.serve(async (req) => {
 
     const ranked = await riotGet<LeagueEntryDto[]>(
       platform,
-      `/lol/league/v4/entries/by-summoner/${encodeURIComponent(summoner.id)}`,
+      `/lol/league/v4/entries/by-puuid/${encodeURIComponent(account.puuid)}`,
     );
 
     const matchIds = await riotGet<string[]>(

@@ -82,30 +82,51 @@ type Props = {
 };
 
 export function LeagueHub({ onBackToChooser }: Props) {
-  const [gameName, setGameName] = useState("");
-  const [tagLine, setTagLine] = useState("");
+  const [riotId, setRiotId] = useState("");
   const [platform, setPlatform] = useState<LolPlatform>("na1");
   const [result, setResult] = useState<LookupResult | null>(null);
 
   const lookup = useMutation({
     mutationFn: async () => {
+      const trimmed = riotId.trim();
+      if (!trimmed.includes("#")) {
+        throw new Error("Use full Riot ID format: Name#TAG");
+      }
+
       const { data, error } = await supabase.functions.invoke<LookupResult>("lol-riot", {
         body: {
-          gameName: gameName.trim(),
-          tagLine: tagLine.trim().replace(/^#/, ""),
+          riotId: trimmed,
           platform,
         },
       });
+
+      // On non-2xx, supabase-js still often puts JSON body in `data`
+      if (data?.error) throw new Error(data.error);
+
       if (error) {
         const msg = error.message || "Edge Function request failed";
+        // Try to read response body from FunctionsHttpError
+        const ctx = (error as { context?: Response }).context;
+        if (ctx && typeof ctx.json === "function") {
+          try {
+            const body = (await ctx.json()) as { error?: string };
+            if (body?.error) throw new Error(body.error);
+          } catch (inner) {
+            if (inner instanceof Error && inner.message !== msg) throw inner;
+          }
+        }
         if (/failed to send a request/i.test(msg) || /fetch/i.test(msg)) {
           throw new Error(
-            "Could not reach the lol-riot Edge Function. Deploy it with: npx supabase functions deploy lol-riot — and set the RIOT_API_KEY secret in Supabase → Edge Functions → Secrets.",
+            "Could not reach the lol-riot Edge Function. Deploy it and set RIOT_API_KEY in Supabase secrets.",
+          );
+        }
+        if (/non-2xx/i.test(msg)) {
+          throw new Error(
+            "Lookup failed (server error). Check Riot ID, region, and that your RIOT_API_KEY is valid.",
           );
         }
         throw new Error(msg);
       }
-      if (data?.error) throw new Error(data.error);
       if (!data?.account) throw new Error("Empty response from League lookup");
       return data;
     },
@@ -114,7 +135,7 @@ export function LeagueHub({ onBackToChooser }: Props) {
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-    if (!gameName.trim() || !tagLine.trim()) return;
+    if (!riotId.trim()) return;
     lookup.mutate();
   };
 
@@ -152,23 +173,13 @@ export function LeagueHub({ onBackToChooser }: Props) {
           onSubmit={handleSubmit}
           className="rounded-[2rem] border border-white/80 bg-white/50 p-6 shadow-[0_8px_30px_rgb(0,0,0,0.08)] backdrop-blur-2xl"
         >
-          <div className="grid gap-4 sm:grid-cols-[1fr_8rem_7rem_auto]">
+          <div className="grid gap-4 sm:grid-cols-[1fr_7rem_auto]">
             <label className="text-sm font-semibold text-slate-700">
-              Game name
+              Riot ID
               <input
-                value={gameName}
-                onChange={(e) => setGameName(e.target.value)}
-                placeholder="Faker"
-                className="mt-1 w-full rounded-2xl border border-white/80 bg-white/90 px-4 py-3 font-medium text-slate-800 outline-none focus:ring-2 focus:ring-violet-400"
-                required
-              />
-            </label>
-            <label className="text-sm font-semibold text-slate-700">
-              Tag
-              <input
-                value={tagLine}
-                onChange={(e) => setTagLine(e.target.value)}
-                placeholder="KR1"
+                value={riotId}
+                onChange={(e) => setRiotId(e.target.value)}
+                placeholder="Name#TAG"
                 className="mt-1 w-full rounded-2xl border border-white/80 bg-white/90 px-4 py-3 font-medium text-slate-800 outline-none focus:ring-2 focus:ring-violet-400"
                 required
               />
@@ -197,9 +208,9 @@ export function LeagueHub({ onBackToChooser }: Props) {
             </button>
           </div>
           <p className="mt-3 text-xs font-medium text-slate-500">
-            Uses Riot ID format <span className="font-bold text-slate-600">Name#TAG</span>. Requires
-            the <code className="rounded bg-white/80 px-1">lol-riot</code> edge function and{" "}
-            <code className="rounded bg-white/80 px-1">RIOT_API_KEY</code> secret.
+            Paste the full ID in one field, like{" "}
+            <span className="font-bold text-slate-600">Faker#KR1</span>. Pick the player&apos;s
+            region too.
           </p>
         </form>
 
