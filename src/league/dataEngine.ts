@@ -107,6 +107,20 @@ export const processData = (matches, timelines, mePuuid, friendPuuid) => {
          const eVision = (enemyAdc?.visionScore || 0) + (enemySupp?.visionScore || 0);
          stats.latestMatchup.them = { kills: eKills, gold: eGold, dmg: eDmg, vision: eVision };
          stats.latestMatchup.ready = true;
+         // Snapshot ~14 min for lane ΔXP / ΔCS columns on the scoreboard
+         const frames = timeline?.info?.frames || [];
+         const frame14 = frames[14] || frames[Math.min(14, frames.length - 1)] || null;
+         const at14ByPid = {};
+         if (frame14?.participantFrames) {
+           Object.entries(frame14.participantFrames).forEach(([pid, f]) => {
+             at14ByPid[Number(pid)] = {
+               xp: f.xp || 0,
+               cs: (f.minionsKilled || 0) + (f.jungleMinionsKilled || 0),
+               gold: f.totalGold || 0,
+               level: f.level || 0,
+             };
+           });
+         }
          stats.latestGame = {
            matchId: match.metadata?.matchId ?? null,
            gameMode: match.info.gameMode,
@@ -121,6 +135,7 @@ export const processData = (matches, timelines, mePuuid, friendPuuid) => {
            allParticipants: p,
            enemyAdc: enemyAdc || null,
            enemySupp: enemySupp || null,
+           at14ByPid,
          };
       }
 
