@@ -14,8 +14,6 @@ export const env = {
   appName: import.meta.env.VITE_APP_NAME ?? "At Home Project Manager",
   appEnv: import.meta.env.VITE_APP_ENV ?? "development",
   debugLogs: import.meta.env.VITE_ENABLE_DEBUG_LOGS === "true",
-  /** Temporary: skip the hub login screen in local dev. Set VITE_BYPASS_AUTH=false to restore it. */
-  bypassAuth:
-    import.meta.env.VITE_BYPASS_AUTH === "true" ||
-    (import.meta.env.DEV && import.meta.env.VITE_BYPASS_AUTH !== "false"),
+  /** Temporary: skip the hub login screen everywhere. Set VITE_BYPASS_AUTH=false to restore it. */
+  bypassAuth: import.meta.env.VITE_BYPASS_AUTH !== "false",
 } as const;
