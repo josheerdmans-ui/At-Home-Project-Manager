@@ -26,14 +26,49 @@ export type NinjaItemActivity = {
   createdAt: string;
 };
 
+export type NinjaProgressCategory = "gameplay" | "visuals" | "bug_fixes";
+
 export type NinjaProgressUpdate = {
   id: string;
   version: string;
   title: string;
   body: string;
+  category: NinjaProgressCategory;
+  releasedOn: string;
   createdBy: string;
   createdAt: string;
 };
+
+export const NINJA_PROGRESS_CATEGORIES: {
+  id: NinjaProgressCategory;
+  label: string;
+}[] = [
+  { id: "gameplay", label: "Gameplay" },
+  { id: "visuals", label: "Visuals" },
+  { id: "bug_fixes", label: "Bug fixes" },
+];
+
+export function formatReleaseDate(value: string): string {
+  const date = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+}
+
+export function progressSummary(body: string): string {
+  const line = body.split(/\r?\n/).map((entry) => entry.trim()).find(Boolean);
+  return line ?? "No notes posted.";
+}
+
+export function countProgressChanges(body: string): number {
+  const lines = body.split(/\r?\n/).map((entry) => entry.trim()).filter(Boolean);
+  return Math.max(lines.length, 1);
+}
+
+export function progressVersionBadge(version: string, index: number): string {
+  if (/proto/i.test(version)) return "bg-[#2A2D36] text-zinc-300";
+  if (index === 0) return "bg-[#FF8C42] text-white";
+  return "bg-[#3B82F6] text-white";
+}
 
 export type NinjaIdea = {
   id: string;

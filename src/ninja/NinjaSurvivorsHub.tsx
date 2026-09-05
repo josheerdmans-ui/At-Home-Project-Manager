@@ -8,6 +8,7 @@ import {
   Gamepad2,
   LayoutDashboard,
   Plus,
+  Rocket,
   Search,
   Settings,
   Sparkles,
@@ -18,6 +19,7 @@ import { DbSetupPanel } from "../components/DbSetupPanel";
 import { NINJA_SURVIVORS_SETUP_SQL } from "../lib/ninja-survivors-setup-sql";
 import { NinjaBoardTable } from "./NinjaBoardTable";
 import { NinjaDashboard } from "./NinjaDashboard";
+import { NinjaGodotProgress } from "./NinjaGodotProgress";
 import { NinjaItemModal } from "./NinjaItemModal";
 import { NinjaSaveToast } from "./NinjaSaveToast";
 import { initialsFromName, NINJA_AREAS, type NinjaItemArea, type NinjaItemStage } from "./ninja-types";
@@ -33,7 +35,11 @@ import {
 import { useNinjaIdeas, useNinjaIdeasMutations } from "./useNinjaIdeas";
 import { useNinjaProgress, useNinjaProgressMutations } from "./useNinjaProgress";
 
-type HubScreen = "dashboard" | NinjaItemArea;
+type HubScreen = "dashboard" | "progress" | NinjaItemArea;
+
+function isBoardScreen(screen: HubScreen): screen is NinjaItemArea {
+  return screen !== "dashboard" && screen !== "progress";
+}
 
 type Props = {
   user: string;
@@ -57,7 +63,7 @@ export function NinjaSurvivorsHub({ user, onSwitchPerson, onBackToChooser }: Pro
   const progressQuery = useNinjaProgress();
   const progressMut = useNinjaProgressMutations();
   const [screen, setScreen] = useState<HubScreen>("dashboard");
-  const area: NinjaItemArea = screen === "dashboard" ? "character_design" : screen;
+  const area: NinjaItemArea = isBoardScreen(screen) ? screen : "character_design";
   const [openId, setOpenId] = useState<string | null>(null);
   const [preview, setPreview] = useState<{ itemId: string; imageId: string } | null>(null);
   const [saveNotice, setSaveNotice] = useState<string | null>(null);
@@ -87,10 +93,12 @@ export function NinjaSurvivorsHub({ user, onSwitchPerson, onBackToChooser }: Pro
   const currentArea =
     screen === "dashboard"
       ? { id: "dashboard" as const, label: "Dashboard" }
-      : (NINJA_AREAS.find((entry) => entry.id === screen) ?? {
-          id: screen,
-          label: "Character Design",
-        });
+      : screen === "progress"
+        ? { id: "progress" as const, label: "Godot Progress" }
+        : (NINJA_AREAS.find((entry) => entry.id === screen) ?? {
+            id: screen,
+            label: "Character Design",
+          });
   const ownerOptions = useMemo(
     () =>
       Array.from(
@@ -186,6 +194,7 @@ export function NinjaSurvivorsHub({ user, onSwitchPerson, onBackToChooser }: Pro
           screen={screen}
           counts={areaCounts}
           ideaCount={0}
+          progressCount={0}
           onScreenChange={setScreen}
           onBackToChooser={onBackToChooser}
         />
@@ -204,25 +213,34 @@ export function NinjaSurvivorsHub({ user, onSwitchPerson, onBackToChooser }: Pro
         screen={screen}
         counts={areaCounts}
         ideaCount={ideasQuery.data?.length ?? 0}
+        progressCount={progressQuery.data?.length ?? 0}
         onScreenChange={setScreen}
         onBackToChooser={onBackToChooser}
       />
 
       <div className="relative z-10 flex min-w-0 flex-1 flex-col">
         <header className={`relative z-10 flex flex-wrap items-start justify-between gap-4 border-b px-6 py-4 ${NINJA.header}`}>
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#FF8C42]">
-              Ninjatards / {currentArea.label}
-            </p>
-            <h1 className="mt-1 text-3xl font-black tracking-tight text-white">{currentArea.label}</h1>
-            <p className="mt-1 text-sm text-zinc-400">
-              {screen === "dashboard"
-                ? "Studio snapshot, newest cards, and quick ideas the team can vote on."
-                : "Cards by section — click a card to add info, details, and images."}
-            </p>
-          </div>
+          {screen === "progress" ? (
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#FF8C42]">
+                Ninjatards / Godot Progress
+              </p>
+            </div>
+          ) : (
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#FF8C42]">
+                Ninjatards / {currentArea.label}
+              </p>
+              <h1 className="mt-1 text-3xl font-black tracking-tight text-white">{currentArea.label}</h1>
+              <p className="mt-1 text-sm text-zinc-400">
+                {screen === "dashboard"
+                  ? "Studio snapshot, newest cards, and quick ideas the team can vote on."
+                  : "Cards by section — click a card to add info, details, and images."}
+              </p>
+            </div>
+          )}
           <div className="flex flex-wrap items-center gap-2">
-            {screen !== "dashboard" && (
+            {isBoardScreen(screen) && (
               <>
             <label className="flex items-center gap-2 rounded-full border border-white/10 bg-[#16181F] px-3 py-2 text-sm text-zinc-400">
               <Search size={15} />
@@ -327,6 +345,22 @@ export function NinjaSurvivorsHub({ user, onSwitchPerson, onBackToChooser }: Pro
                 {ideasQuery.data?.length ?? 0}
               </span>
             </button>
+            <button
+              type="button"
+              onClick={() => setScreen("progress")}
+              className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold ${
+                screen === "progress" ? "bg-[#FF8C42] text-white" : "bg-[#1E2028] text-zinc-300"
+              }`}
+            >
+              Godot Progress
+              <span
+                className={`inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] ${
+                  screen === "progress" ? "bg-white/20 text-white" : "bg-[#FF8C42] text-white"
+                }`}
+              >
+                {progressQuery.data?.length ?? 0}
+              </span>
+            </button>
             {NINJA_AREAS.map((entry) => (
               <button
                 key={entry.id}
@@ -408,26 +442,39 @@ export function NinjaSurvivorsHub({ user, onSwitchPerson, onBackToChooser }: Pro
               updatesError={
                 progressQuery.error
                   ? `Could not load updates: ${progressQuery.error.message}`
+                  : null
+              }
+              onOpenProgress={() => setScreen("progress")}
+              onDeleteIdea={(idea) => {
+                if (confirm(`Delete idea "${idea.title}"?`)) {
+                  ideaMut.deleteIdea.mutate(idea.id, { onSuccess: () => flashSaved("Idea removed") });
+                }
+              }}
+            />
+          ) : screen === "progress" ? (
+            <NinjaGodotProgress
+              user={user}
+              updates={progressQuery.data ?? []}
+              loading={progressQuery.isLoading}
+              error={
+                progressQuery.error
+                  ? `Could not load updates: ${progressQuery.error.message}`
                   : (progressMut.createUpdate.error?.message ??
                     progressMut.deleteUpdate.error?.message ??
                     null)
               }
-              onAddUpdate={({ version, title, body }) =>
+              busy={busy}
+              onPublish={({ version, title, releasedOn, category, body }) =>
                 progressMut.createUpdate.mutate(
-                  { version, title, body, createdBy: user },
+                  { version, title, releasedOn, category, body, createdBy: user },
                   { onSuccess: () => flashSaved("Progress posted") },
                 )
               }
-              onDeleteUpdate={(update) => {
+              onDelete={(update) => {
                 if (confirm(`Delete Godot ${update.version} update?`)) {
                   progressMut.deleteUpdate.mutate(update.id, {
                     onSuccess: () => flashSaved("Update removed"),
                   });
-                }
-              }}
-              onDeleteIdea={(idea) => {
-                if (confirm(`Delete idea "${idea.title}"?`)) {
-                  ideaMut.deleteIdea.mutate(idea.id, { onSuccess: () => flashSaved("Idea removed") });
                 }
               }}
             />
@@ -529,12 +576,14 @@ function Sidebar({
   screen,
   counts,
   ideaCount,
+  progressCount,
   onScreenChange,
   onBackToChooser,
 }: {
   screen: HubScreen;
   counts: Record<NinjaItemArea, number>;
   ideaCount: number;
+  progressCount: number;
   onScreenChange: (screen: HubScreen) => void;
   onBackToChooser: () => void;
 }) {
@@ -562,6 +611,21 @@ function Sidebar({
           <span className="min-w-0 flex-1 truncate">Dashboard</span>
           <span className="inline-flex min-w-5 shrink-0 items-center justify-center rounded-full bg-[#FF8C42] px-1.5 py-0.5 text-[10px] font-bold text-white">
             {ideaCount}
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={() => onScreenChange("progress")}
+          className={`flex items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm font-semibold transition ${
+            screen === "progress"
+              ? "bg-[#FF8C42]/15 text-white shadow-[0_0_24px_rgba(255,140,66,0.12)]"
+              : "text-zinc-400 hover:bg-white/5 hover:text-zinc-200"
+          }`}
+        >
+          <Rocket size={16} className={`shrink-0 ${screen === "progress" ? "text-[#FF8C42]" : ""}`} />
+          <span className="min-w-0 flex-1 truncate">Godot Progress</span>
+          <span className="inline-flex min-w-5 shrink-0 items-center justify-center rounded-full bg-[#FF8C42] px-1.5 py-0.5 text-[10px] font-bold text-white">
+            {progressCount}
           </span>
         </button>
         {NINJA_AREAS.map((entry) => {

@@ -247,12 +247,27 @@ create table if not exists public.ninja_progress_updates (
   version text not null,
   title text not null default '',
   body text not null default '',
+  category text not null default 'gameplay',
+  released_on date not null default current_date,
   created_by text not null,
   created_at timestamptz not null default now()
 );
 
 alter table public.ninja_progress_updates
   add column if not exists title text not null default '';
+
+alter table public.ninja_progress_updates
+  add column if not exists released_on date not null default current_date;
+
+alter table public.ninja_progress_updates
+  add column if not exists category text not null default 'gameplay';
+
+alter table public.ninja_progress_updates
+  drop constraint if exists ninja_progress_updates_category_check;
+
+alter table public.ninja_progress_updates
+  add constraint ninja_progress_updates_category_check
+  check (category in ('gameplay', 'visuals', 'bug_fixes'));
 
 create index if not exists ninja_progress_updates_created_idx
   on public.ninja_progress_updates (created_at desc);

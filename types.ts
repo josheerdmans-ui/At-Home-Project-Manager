@@ -986,6 +986,8 @@ export interface Database {
           version: string;
           title: string;
           body: string;
+          category: string;
+          released_on: string;
           created_by: string;
           created_at: string;
         };
@@ -994,6 +996,8 @@ export interface Database {
           version: string;
           title?: string;
           body?: string;
+          category?: string;
+          released_on?: string;
           created_by: string;
           created_at?: string;
         };
@@ -1002,6 +1006,8 @@ export interface Database {
           version?: string;
           title?: string;
           body?: string;
+          category?: string;
+          released_on?: string;
           created_by?: string;
           created_at?: string;
         };
