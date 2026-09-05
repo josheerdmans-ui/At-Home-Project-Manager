@@ -1,5 +1,10 @@
+import { useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
+  NinjaItemActivityInsert,
+  NinjaItemActivityRow,
+  NinjaItemCheckInsert,
+  NinjaItemCheckRow,
   NinjaItemImageInsert,
   NinjaItemImageRow,
   NinjaItemInsert,
@@ -7,28 +12,40 @@ import type {
   NinjaItemUpdate,
 } from "../../types";
 import { supabase } from "../lib/supabase";
-import type { NinjaItem, NinjaItemArea, NinjaItemImage, NinjaItemStage } from "./ninja-types";
+import type {
+  NinjaItem,
+  NinjaItemActivity,
+  NinjaItemArea,
+  NinjaItemCheck,
+  NinjaItemImage,
+  NinjaItemPriority,
+  NinjaItemStage,
+} from "./ninja-types";
 import { sanitizeNinjaFileName } from "./ninja-types";
 
-const NINJA_ITEMS_KEY = ["ninja_items"] as const;
+export const NINJA_ITEMS_KEY = ["ninja_items"] as const;
 
 type NinjaItemQueryRow = NinjaItemRow & {
   ninja_item_images?: NinjaItemImageRow[] | null;
+  ninja_item_checks?: NinjaItemCheckRow[] | null;
+  ninja_item_activity?: NinjaItemActivityRow[] | null;
 };
 
 export function isMissingNinjaItemsTableError(message: string) {
   const lower = message.toLowerCase();
   return (
     lower.includes("schema cache") ||
-    (lower.includes("ninja_items") &&
+    (lower.includes("ninja_item") &&
       (lower.includes("could not find the table") ||
         lower.includes("does not exist") ||
         lower.includes("relation"))) ||
     (lower.includes("column") &&
-      (lower.includes("area") || lower.includes("info")) &&
-      lower.includes("does not exist")) ||
-    (lower.includes("ninja_item_images") &&
-      (lower.includes("could not find") || lower.includes("does not exist")))
+      (lower.includes("area") ||
+        lower.includes("info") ||
+        lower.includes("due_date") ||
+        lower.includes("priority") ||
+        lower.includes("tags")) &&
+      lower.includes("does not exist"))
   );
 }
 
@@ -43,7 +60,30 @@ function rowToImage(row: NinjaItemImageRow): NinjaItemImage {
   };
 }
 
+function rowToCheck(row: NinjaItemCheckRow): NinjaItemCheck {
+  return {
+    id: row.id,
+    itemId: row.item_id,
+    title: row.title,
+    done: row.done,
+    sortOrder: row.sort_order,
+  };
+}
+
+function rowToActivity(row: NinjaItemActivityRow): NinjaItemActivity {
+  return {
+    id: row.id,
+    actor: row.actor,
+    message: row.message,
+    createdAt: row.created_at,
+  };
+}
+
 function rowToItem(row: NinjaItemQueryRow): NinjaItem {
+  const checks = (row.ninja_item_checks ?? []).map(rowToCheck);
+  checks.sort((a, b) => a.sortOrder - b.sortOrder);
+  const activity = (row.ninja_item_activity ?? []).map(rowToActivity);
+  activity.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   return {
     id: row.id,
     title: row.title,
@@ -52,16 +92,30 @@ function rowToItem(row: NinjaItemQueryRow): NinjaItem {
     stage: row.stage,
     area: row.area,
     owner: row.owner,
+    dueDate: row.due_date,
+    priority: row.priority,
+    tags: row.tags ?? [],
     images: (row.ninja_item_images ?? []).map(rowToImage),
+    checks,
+    activity,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
 }
 
+async function logActivity(itemId: string, actor: string, message: string) {
+  const row: NinjaItemActivityInsert = {
+    item_id: itemId,
+    actor: actor.trim() || "Team",
+    message,
+  };
+  await supabase.from("ninja_item_activity").insert(row);
+}
+
 async function fetchNinjaItems(): Promise<NinjaItem[]> {
   const { data, error } = await supabase
     .from("ninja_items")
-    .select("*, ninja_item_images(*)")
+    .select("*, ninja_item_images(*), ninja_item_checks(*), ninja_item_activity(*)")
     .order("updated_at", { ascending: false });
 
   if (error) throw error;
@@ -69,10 +123,37 @@ async function fetchNinjaItems(): Promise<NinjaItem[]> {
 }
 
 export function useNinjaItems() {
+  const qc = useQueryClient();
+
+  useEffect(() => {
+    const channel = supabase
+      .channel("ninja-board-sync")
+      .on("postgres_changes", { event: "*", schema: "public", table: "ninja_items" }, () => {
+        void qc.invalidateQueries({ queryKey: NINJA_ITEMS_KEY });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "ninja_item_images" }, () => {
+        void qc.invalidateQueries({ queryKey: NINJA_ITEMS_KEY });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "ninja_item_checks" }, () => {
+        void qc.invalidateQueries({ queryKey: NINJA_ITEMS_KEY });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "ninja_item_activity" }, () => {
+        void qc.invalidateQueries({ queryKey: NINJA_ITEMS_KEY });
+      })
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [qc]);
+
   return useQuery({
     queryKey: NINJA_ITEMS_KEY,
     queryFn: fetchNinjaItems,
     retry: false,
+    staleTime: 0,
+    refetchOnWindowFocus: true,
+    refetchInterval: 8_000,
   });
 }
 
@@ -83,7 +164,14 @@ export type NinjaItemInput = {
   stage?: NinjaItemStage;
   area?: NinjaItemArea;
   owner: string | null;
+  dueDate: string | null;
+  priority: NinjaItemPriority;
+  tags: string[];
 };
+
+function actorFrom(owner: string | null | undefined) {
+  return owner?.trim() || "Team";
+}
 
 export function useNinjaItemsMutations() {
   const qc = useQueryClient();
@@ -98,9 +186,13 @@ export function useNinjaItemsMutations() {
         stage: input.stage ?? "idea",
         area: input.area ?? "character_design",
         owner: input.owner,
+        due_date: input.dueDate,
+        priority: input.priority,
+        tags: input.tags,
       };
       const { data, error } = await supabase.from("ninja_items").insert(row).select().single();
       if (error) throw error;
+      await logActivity(data.id, actorFrom(input.owner), "Created this card.");
       return rowToItem(data);
     },
     onSuccess: invalidate,
@@ -110,9 +202,13 @@ export function useNinjaItemsMutations() {
     mutationFn: async ({
       id,
       patch,
+      actor,
+      silent,
     }: {
       id: string;
       patch: Partial<NinjaItemInput>;
+      actor?: string | null;
+      silent?: boolean;
     }) => {
       const row: NinjaItemUpdate = {
         title: patch.title,
@@ -121,14 +217,20 @@ export function useNinjaItemsMutations() {
         stage: patch.stage,
         area: patch.area,
         owner: patch.owner,
+        due_date: patch.dueDate,
+        priority: patch.priority,
+        tags: patch.tags,
       };
       const { data, error } = await supabase
         .from("ninja_items")
         .update(row)
         .eq("id", id)
-        .select("*, ninja_item_images(*)")
+        .select("*, ninja_item_images(*), ninja_item_checks(*), ninja_item_activity(*)")
         .single();
       if (error) throw error;
+      if (!silent) {
+        await logActivity(id, actorFrom(actor ?? patch.owner), "Updated this card.");
+      }
       return rowToItem(data as NinjaItemQueryRow);
     },
     onSuccess: invalidate,
@@ -147,7 +249,15 @@ export function useNinjaItemsMutations() {
   });
 
   const uploadImage = useMutation({
-    mutationFn: async ({ itemId, file }: { itemId: string; file: File }) => {
+    mutationFn: async ({
+      itemId,
+      file,
+      actor,
+    }: {
+      itemId: string;
+      file: File;
+      actor?: string | null;
+    }) => {
       const id = crypto.randomUUID();
       const safeName = sanitizeNinjaFileName(file.name);
       const path = `ninja-items/${itemId}/${id}-${safeName}`;
@@ -166,6 +276,7 @@ export function useNinjaItemsMutations() {
       };
       const { data, error } = await supabase.from("ninja_item_images").insert(row).select().single();
       if (error) throw error;
+      await logActivity(itemId, actorFrom(actor), "Added an image to this card.");
       return rowToImage(data);
     },
     onSuccess: invalidate,
@@ -180,5 +291,54 @@ export function useNinjaItemsMutations() {
     onSuccess: invalidate,
   });
 
-  return { createItem, updateItem, deleteItem, uploadImage, deleteImage };
+  const addCheck = useMutation({
+    mutationFn: async ({
+      itemId,
+      title,
+      sortOrder,
+      actor,
+    }: {
+      itemId: string;
+      title: string;
+      sortOrder: number;
+      actor?: string | null;
+    }) => {
+      const row: NinjaItemCheckInsert = {
+        item_id: itemId,
+        title,
+        sort_order: sortOrder,
+      };
+      const { error } = await supabase.from("ninja_item_checks").insert(row);
+      if (error) throw error;
+      await logActivity(itemId, actorFrom(actor), "Added a checklist item.");
+    },
+    onSuccess: invalidate,
+  });
+
+  const toggleCheck = useMutation({
+    mutationFn: async ({ id, done }: { id: string; done: boolean }) => {
+      const { error } = await supabase.from("ninja_item_checks").update({ done }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: invalidate,
+  });
+
+  const deleteCheck = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("ninja_item_checks").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: invalidate,
+  });
+
+  return {
+    createItem,
+    updateItem,
+    deleteItem,
+    uploadImage,
+    deleteImage,
+    addCheck,
+    toggleCheck,
+    deleteCheck,
+  };
 }

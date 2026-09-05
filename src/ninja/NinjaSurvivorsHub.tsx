@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   Award,
@@ -12,6 +12,7 @@ import { DbSetupPanel } from "../components/DbSetupPanel";
 import { NINJA_SURVIVORS_SETUP_SQL } from "../lib/ninja-survivors-setup-sql";
 import { NinjaBoardTable } from "./NinjaBoardTable";
 import { NinjaItemModal } from "./NinjaItemModal";
+import { NinjaSaveToast } from "./NinjaSaveToast";
 import { NINJA_AREAS, type NinjaItemArea } from "./ninja-types";
 import {
   isMissingNinjaItemsTableError,
@@ -36,19 +37,37 @@ export function NinjaSurvivorsHub({ onBackToChooser }: Props) {
   const mut = useNinjaItemsMutations();
   const [area, setArea] = useState<NinjaItemArea>("character_design");
   const [openId, setOpenId] = useState<string | null>(null);
+  const [saveNotice, setSaveNotice] = useState<string | null>(null);
+  const saveTimer = useRef<number | null>(null);
+
+  const flashSaved = (message = "Saved") => {
+    if (saveTimer.current) window.clearTimeout(saveTimer.current);
+    setSaveNotice(message);
+    saveTimer.current = window.setTimeout(() => setSaveNotice(null), 2200);
+  };
 
   const currentArea = NINJA_AREAS.find((entry) => entry.id === area) ?? {
     id: area,
     label: "Character Design",
   };
   const areaItems = useMemo(() => items.filter((item) => item.area === area), [items, area]);
+  const ownerOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(items.map((item) => item.owner).filter((name): name is string => Boolean(name))),
+      ),
+    [items],
+  );
   const openItem = items.find((item) => item.id === openId) ?? null;
   const busy =
     mut.createItem.isPending ||
     mut.updateItem.isPending ||
     mut.deleteItem.isPending ||
     mut.uploadImage.isPending ||
-    mut.deleteImage.isPending;
+    mut.deleteImage.isPending ||
+    mut.addCheck.isPending ||
+    mut.toggleCheck.isPending ||
+    mut.deleteCheck.isPending;
   const mutationError =
     mut.createItem.error?.message ??
     mut.updateItem.error?.message ??
@@ -139,8 +158,16 @@ export function NinjaSurvivorsHub({ onBackToChooser }: Props) {
                   stage: input.stage,
                   area: input.area,
                   owner: null,
+                  dueDate: null,
+                  priority: "medium",
+                  tags: [],
                 },
-                { onSuccess: (created) => setOpenId(created.id) },
+                {
+                  onSuccess: (created) => {
+                    flashSaved("Card created");
+                    setOpenId(created.id);
+                  },
+                },
               )
             }
           />
@@ -152,22 +179,52 @@ export function NinjaSurvivorsHub({ onBackToChooser }: Props) {
       {openItem && (
         <NinjaItemModal
           item={openItem}
+          ownerOptions={ownerOptions}
           busy={busy}
           uploadError={mut.uploadImage.error?.message ?? null}
           onClose={() => setOpenId(null)}
-          onSave={(patch) => mut.updateItem.mutate({ id: openItem.id, patch })}
+          onSave={(patch, after, silent) =>
+            mut.updateItem.mutate(
+              { id: openItem.id, patch, actor: patch.owner ?? openItem.owner, silent },
+              {
+                onSuccess: () => {
+                  flashSaved();
+                  after?.();
+                },
+              },
+            )
+          }
           onDelete={() => {
             if (confirm(`Delete "${openItem.title}"?`)) {
               mut.deleteItem.mutate(openItem, { onSuccess: () => setOpenId(null) });
             }
           }}
-          onUpload={(file) => mut.uploadImage.mutate({ itemId: openItem.id, file })}
+          onUpload={(file) =>
+            mut.uploadImage.mutate(
+              { itemId: openItem.id, file, actor: openItem.owner },
+              { onSuccess: () => flashSaved("Image saved") },
+            )
+          }
           onDeleteImage={(imageId) => {
             const image = openItem.images.find((entry) => entry.id === imageId);
-            if (image) mut.deleteImage.mutate(image);
+            if (image) {
+              mut.deleteImage.mutate(image, { onSuccess: () => flashSaved("Image removed") });
+            }
           }}
+          onAddCheck={(title) =>
+            mut.addCheck.mutate({
+              itemId: openItem.id,
+              title,
+              sortOrder: openItem.checks.length,
+              actor: openItem.owner,
+            })
+          }
+          onToggleCheck={(id, done) => mut.toggleCheck.mutate({ id, done })}
+          onDeleteCheck={(id) => mut.deleteCheck.mutate(id)}
         />
       )}
+
+      <NinjaSaveToast message={saveNotice} />
     </div>
   );
 }

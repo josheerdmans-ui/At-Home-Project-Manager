@@ -19,6 +19,7 @@ export type NinjaItemArea =
   | "game_design_vfx"
   | "core_gameplay"
   | "character_progression";
+export type NinjaItemPriority = "low" | "medium" | "high";
 export type FamilyEventCategory = "general" | "meal" | "activity" | "appointment";
 export type FamilyEventKind = "regular" | "important" | "birthday" | "school";
 export type MemberColorToken =
@@ -788,6 +789,9 @@ export interface Database {
           stage: NinjaItemStage;
           area: NinjaItemArea;
           owner: string | null;
+          due_date: string | null;
+          priority: NinjaItemPriority;
+          tags: string[];
           created_at: string;
           updated_at: string;
         };
@@ -799,6 +803,9 @@ export interface Database {
           stage?: NinjaItemStage;
           area?: NinjaItemArea;
           owner?: string | null;
+          due_date?: string | null;
+          priority?: NinjaItemPriority;
+          tags?: string[];
           created_at?: string;
           updated_at?: string;
         };
@@ -810,6 +817,9 @@ export interface Database {
           stage?: NinjaItemStage;
           area?: NinjaItemArea;
           owner?: string | null;
+          due_date?: string | null;
+          priority?: NinjaItemPriority;
+          tags?: string[];
           created_at?: string;
           updated_at?: string;
         };
@@ -843,6 +853,73 @@ export interface Database {
         Relationships: [
           {
             foreignKeyName: "ninja_item_images_item_id_fkey";
+            columns: ["item_id"];
+            isOneToOne: false;
+            referencedRelation: "ninja_items";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      ninja_item_checks: {
+        Row: {
+          id: string;
+          item_id: string;
+          title: string;
+          done: boolean;
+          sort_order: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          item_id: string;
+          title: string;
+          done?: boolean;
+          sort_order?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          item_id?: string;
+          title?: string;
+          done?: boolean;
+          sort_order?: number;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "ninja_item_checks_item_id_fkey";
+            columns: ["item_id"];
+            isOneToOne: false;
+            referencedRelation: "ninja_items";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      ninja_item_activity: {
+        Row: {
+          id: string;
+          item_id: string;
+          actor: string;
+          message: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          item_id: string;
+          actor?: string;
+          message: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          item_id?: string;
+          actor?: string;
+          message?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "ninja_item_activity_item_id_fkey";
             columns: ["item_id"];
             isOneToOne: false;
             referencedRelation: "ninja_items";
@@ -905,3 +982,7 @@ export type NinjaItemInsert = Tables["ninja_items"]["Insert"];
 export type NinjaItemUpdate = Tables["ninja_items"]["Update"];
 export type NinjaItemImageRow = Tables["ninja_item_images"]["Row"];
 export type NinjaItemImageInsert = Tables["ninja_item_images"]["Insert"];
+export type NinjaItemCheckRow = Tables["ninja_item_checks"]["Row"];
+export type NinjaItemCheckInsert = Tables["ninja_item_checks"]["Insert"];
+export type NinjaItemActivityRow = Tables["ninja_item_activity"]["Row"];
+export type NinjaItemActivityInsert = Tables["ninja_item_activity"]["Insert"];
