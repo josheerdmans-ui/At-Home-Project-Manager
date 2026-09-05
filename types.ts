@@ -792,6 +792,7 @@ export interface Database {
           due_date: string | null;
           priority: NinjaItemPriority;
           tags: string[];
+          sort_order: number;
           created_at: string;
           updated_at: string;
         };
@@ -806,6 +807,7 @@ export interface Database {
           due_date?: string | null;
           priority?: NinjaItemPriority;
           tags?: string[];
+          sort_order?: number;
           created_at?: string;
           updated_at?: string;
         };
@@ -820,6 +822,7 @@ export interface Database {
           due_date?: string | null;
           priority?: NinjaItemPriority;
           tags?: string[];
+          sort_order?: number;
           created_at?: string;
           updated_at?: string;
         };

@@ -21,6 +21,7 @@ create table if not exists public.ninja_items (
   stage text not null default 'idea',
   area text not null default 'character_design',
   owner text,
+  sort_order int not null default 0,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -39,6 +40,9 @@ alter table public.ninja_items
 
 alter table public.ninja_items
   add column if not exists tags text[] not null default '{}';
+
+alter table public.ninja_items
+  add column if not exists sort_order int not null default 0;
 
 update public.ninja_items
   set stage = 'working_on'
@@ -64,6 +68,8 @@ alter table public.ninja_items
 create index if not exists ninja_items_stage_idx on public.ninja_items (stage);
 create index if not exists ninja_items_area_idx on public.ninja_items (area);
 create index if not exists ninja_items_updated_idx on public.ninja_items (updated_at desc);
+create index if not exists ninja_items_board_order_idx
+  on public.ninja_items (area, stage, sort_order);
 
 drop trigger if exists ninja_items_set_updated_at on public.ninja_items;
 create trigger ninja_items_set_updated_at

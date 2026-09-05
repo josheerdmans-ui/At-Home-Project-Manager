@@ -4,6 +4,7 @@ import { HubAuthGate } from "./components/HubAuthGate";
 import { HomeAppPasswordGate } from "./components/HomeAppPasswordGate";
 import { AppChooser, type AppDestination } from "./components/AppChooser";
 import { NinjaSurvivorsHub } from "./ninja/NinjaSurvivorsHub";
+import { NinjaWhoAreYou } from "./ninja/NinjaWhoAreYou";
 
 function AuthenticatedApps() {
   const [destination, setDestination] = useState<AppDestination | null>(null);
@@ -13,7 +14,17 @@ function AuthenticatedApps() {
   }
 
   if (destination === "ninja") {
-    return <NinjaSurvivorsHub onBackToChooser={() => setDestination(null)} />;
+    return (
+      <NinjaWhoAreYou onBack={() => setDestination(null)}>
+        {(user, switchPerson) => (
+          <NinjaSurvivorsHub
+            user={user}
+            onSwitchPerson={switchPerson}
+            onBackToChooser={() => setDestination(null)}
+          />
+        )}
+      </NinjaWhoAreYou>
+    );
   }
 
   return (

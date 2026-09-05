@@ -37,6 +37,7 @@ export type NinjaItem = {
   dueDate: string | null;
   priority: NinjaItemPriority;
   tags: string[];
+  sortOrder: number;
   images: NinjaItemImage[];
   checks: NinjaItemCheck[];
   activity: NinjaItemActivity[];

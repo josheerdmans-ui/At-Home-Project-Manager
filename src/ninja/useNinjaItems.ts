@@ -12,6 +12,7 @@ import type {
   NinjaItemUpdate,
 } from "../../types";
 import { supabase } from "../lib/supabase";
+import { applyCardMoves, type NinjaCardMove } from "./ninja-dnd";
 import type {
   NinjaItem,
   NinjaItemActivity,
@@ -21,7 +22,7 @@ import type {
   NinjaItemPriority,
   NinjaItemStage,
 } from "./ninja-types";
-import { sanitizeNinjaFileName } from "./ninja-types";
+import { NINJA_STAGES, sanitizeNinjaFileName } from "./ninja-types";
 
 export const NINJA_ITEMS_KEY = ["ninja_items"] as const;
 
@@ -44,7 +45,8 @@ export function isMissingNinjaItemsTableError(message: string) {
         lower.includes("info") ||
         lower.includes("due_date") ||
         lower.includes("priority") ||
-        lower.includes("tags")) &&
+        lower.includes("tags") ||
+        lower.includes("sort_order")) &&
       lower.includes("does not exist"))
   );
 }
@@ -95,6 +97,7 @@ function rowToItem(row: NinjaItemQueryRow): NinjaItem {
     dueDate: row.due_date,
     priority: row.priority,
     tags: row.tags ?? [],
+    sortOrder: row.sort_order ?? 0,
     images: (row.ninja_item_images ?? []).map(rowToImage),
     checks,
     activity,
@@ -116,7 +119,8 @@ async function fetchNinjaItems(): Promise<NinjaItem[]> {
   const { data, error } = await supabase
     .from("ninja_items")
     .select("*, ninja_item_images(*), ninja_item_checks(*), ninja_item_activity(*)")
-    .order("updated_at", { ascending: false });
+    .order("sort_order", { ascending: true })
+    .order("created_at", { ascending: true });
 
   if (error) throw error;
   return ((data ?? []) as NinjaItemQueryRow[]).map(rowToItem);
@@ -167,6 +171,7 @@ export type NinjaItemInput = {
   dueDate: string | null;
   priority: NinjaItemPriority;
   tags: string[];
+  sortOrder?: number;
 };
 
 function actorFrom(owner: string | null | undefined) {
@@ -189,6 +194,7 @@ export function useNinjaItemsMutations() {
         due_date: input.dueDate,
         priority: input.priority,
         tags: input.tags,
+        sort_order: input.sortOrder ?? 0,
       };
       const { data, error } = await supabase.from("ninja_items").insert(row).select().single();
       if (error) throw error;
@@ -220,6 +226,7 @@ export function useNinjaItemsMutations() {
         due_date: patch.dueDate,
         priority: patch.priority,
         tags: patch.tags,
+        sort_order: patch.sortOrder,
       };
       const { data, error } = await supabase
         .from("ninja_items")
@@ -234,6 +241,49 @@ export function useNinjaItemsMutations() {
       return rowToItem(data as NinjaItemQueryRow);
     },
     onSuccess: invalidate,
+  });
+
+  const moveCards = useMutation({
+    mutationFn: async ({
+      moves,
+      draggedId,
+      fromStage,
+      actor,
+    }: {
+      moves: NinjaCardMove[];
+      draggedId: string;
+      fromStage: NinjaItemStage;
+      actor: string;
+    }) => {
+      const results = await Promise.all(
+        moves.map((move) =>
+          supabase
+            .from("ninja_items")
+            .update({ stage: move.stage, sort_order: move.sortOrder })
+            .eq("id", move.id),
+        ),
+      );
+      const failed = results.find((result) => result.error);
+      if (failed?.error) throw failed.error;
+
+      const dragged = moves.find((move) => move.id === draggedId);
+      if (dragged && dragged.stage !== fromStage) {
+        const label = NINJA_STAGES.find((stage) => stage.id === dragged.stage)?.label ?? dragged.stage;
+        await logActivity(draggedId, actorFrom(actor), `Moved this card to ${label}.`);
+      }
+    },
+    onMutate: async ({ moves }) => {
+      await qc.cancelQueries({ queryKey: NINJA_ITEMS_KEY });
+      const previous = qc.getQueryData<NinjaItem[]>(NINJA_ITEMS_KEY);
+      qc.setQueryData<NinjaItem[]>(NINJA_ITEMS_KEY, (current) =>
+        current ? applyCardMoves(current, moves) : current,
+      );
+      return { previous };
+    },
+    onError: (_error, _vars, context) => {
+      if (context?.previous) qc.setQueryData(NINJA_ITEMS_KEY, context.previous);
+    },
+    onSettled: invalidate,
   });
 
   const deleteItem = useMutation({
@@ -334,6 +384,7 @@ export function useNinjaItemsMutations() {
   return {
     createItem,
     updateItem,
+    moveCards,
     deleteItem,
     uploadImage,
     deleteImage,
