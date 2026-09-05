@@ -1,15 +1,8 @@
 import { useMemo, useState, type FormEvent } from "react";
-import { ChevronRight, Heart, LayoutDashboard, Plus, SquareArrowUpRight, Trash2 } from "lucide-react";
+import { Heart, LayoutDashboard, Plus, SquareArrowUpRight, Trash2 } from "lucide-react";
 import type { NinjaIdea, NinjaItem, NinjaItemArea, NinjaProgressUpdate } from "./ninja-types";
-import {
-  formatActivityTime,
-  formatReleaseDate,
-  initialsFromName,
-  NINJA_AREAS,
-  NINJA_STAGES,
-  progressSummary,
-  progressVersionBadge,
-} from "./ninja-types";
+import { formatActivityTime, initialsFromName, NINJA_AREAS, NINJA_STAGES } from "./ninja-types";
+import { NinjaProgressNotes } from "./NinjaProgressNotes";
 import { NINJA } from "./ninja-ui";
 
 type Props = {
@@ -27,7 +20,6 @@ type Props = {
   updates: NinjaProgressUpdate[];
   updatesLoading: boolean;
   updatesError: string | null;
-  onOpenProgress: () => void;
 };
 
 export function NinjaDashboard({
@@ -45,7 +37,6 @@ export function NinjaDashboard({
   updates,
   updatesLoading,
   updatesError,
-  onOpenProgress,
 }: Props) {
   const [draft, setDraft] = useState("");
   const [movingId, setMovingId] = useState<string | null>(null);
@@ -223,6 +214,24 @@ export function NinjaDashboard({
 
       <div className="grid gap-4">
         <section className="rounded-3xl border border-white/10 bg-[#16181F]/80 p-5">
+          <h2 className="text-sm font-bold text-white">Patch notes</h2>
+          <p className="mt-1 text-xs text-zinc-500">Published Godot updates. Click one to read it.</p>
+
+          {updatesError && <p className="mt-3 text-sm font-medium text-rose-400">{updatesError}</p>}
+
+          <div className="mt-4">
+            {updatesLoading ? (
+              <p className="text-sm text-zinc-500">Loading updates...</p>
+            ) : (
+              <NinjaProgressNotes
+                updates={updates}
+                emptyText="No patch notes yet. Publish one from Godot Progress."
+              />
+            )}
+          </div>
+        </section>
+
+        <section className="rounded-3xl border border-white/10 bg-[#16181F]/80 p-5">
           <div className="mb-4 flex items-center gap-2">
             <LayoutDashboard size={16} className="text-[#FF8C42]" />
             <h2 className="text-sm font-bold text-white">Most recent additions</h2>
@@ -255,64 +264,6 @@ export function NinjaDashboard({
                   </li>
                 );
               })}
-            </ul>
-          )}
-        </section>
-
-        <section className="rounded-3xl border border-white/10 bg-[#16181F]/80 p-5">
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <div>
-              <h2 className="text-sm font-bold text-white">Godot progress</h2>
-              <p className="mt-1 text-xs text-zinc-500">Latest published builds.</p>
-            </div>
-            <button
-              type="button"
-              onClick={onOpenProgress}
-              className="inline-flex items-center gap-1 text-xs font-bold text-[#FF8C42] hover:text-[#FF9A58]"
-            >
-              Open page
-              <ChevronRight size={14} />
-            </button>
-          </div>
-
-          {updatesError && <p className="mb-3 text-sm font-medium text-rose-400">{updatesError}</p>}
-
-          {updatesLoading ? (
-            <p className="text-sm text-zinc-500">Loading updates...</p>
-          ) : updates.length === 0 ? (
-            <button
-              type="button"
-              onClick={onOpenProgress}
-              className="w-full rounded-2xl border border-dashed border-white/10 px-3 py-6 text-sm text-zinc-500 hover:border-[#FF8C42]/40 hover:text-[#FF8C42]"
-            >
-              No versions posted yet. Open Godot Progress to publish the first one.
-            </button>
-          ) : (
-            <ul className="space-y-2">
-              {updates.slice(0, 3).map((update, index) => (
-                <li key={update.id}>
-                  <button
-                    type="button"
-                    onClick={onOpenProgress}
-                    className="flex w-full items-center gap-3 rounded-2xl border border-white/5 bg-[#1E2028] px-3 py-3 text-left hover:border-[#FF8C42]/40"
-                  >
-                    <span
-                      className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${progressVersionBadge(update.version, index)}`}
-                    >
-                      {update.version}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-bold text-white">
-                        {update.title || "Untitled update"}
-                      </p>
-                      <p className="mt-0.5 truncate text-xs text-zinc-500">
-                        {formatReleaseDate(update.releasedOn)} · {progressSummary(update.body)}
-                      </p>
-                    </div>
-                    <ChevronRight size={16} className="shrink-0 text-zinc-500" />
-                  </button>
-                </li>
-              ))}
             </ul>
           )}
         </section>

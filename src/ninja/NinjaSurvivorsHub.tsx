@@ -444,7 +444,6 @@ export function NinjaSurvivorsHub({ user, onSwitchPerson, onBackToChooser }: Pro
                   ? `Could not load updates: ${progressQuery.error.message}`
                   : null
               }
-              onOpenProgress={() => setScreen("progress")}
               onDeleteIdea={(idea) => {
                 if (confirm(`Delete idea "${idea.title}"?`)) {
                   ideaMut.deleteIdea.mutate(idea.id, { onSuccess: () => flashSaved("Idea removed") });
