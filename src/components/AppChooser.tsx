@@ -1,7 +1,7 @@
 import { Home, Swords } from "lucide-react";
 import { env } from "../lib/env";
 
-export type AppDestination = "home" | "league";
+export type AppDestination = "home" | "ninja";
 
 type Props = {
   onChoose: (app: AppDestination) => void;
@@ -44,16 +44,16 @@ export function AppChooser({ onChoose }: Props) {
 
           <button
             type="button"
-            onClick={() => onChoose("league")}
+            onClick={() => onChoose("ninja")}
             className="group flex flex-col items-start gap-4 rounded-[2rem] border border-white/80 bg-white/50 p-8 text-left shadow-[0_8px_30px_rgb(0,0,0,0.08)] backdrop-blur-2xl transition hover:-translate-y-1 hover:bg-white/80 hover:shadow-[0_20px_40px_rgb(0,0,0,0.12)]"
           >
-            <div className="rounded-2xl bg-violet-100 p-4 text-violet-700 transition group-hover:bg-violet-600 group-hover:text-white">
+            <div className="rounded-2xl bg-orange-100 p-4 text-[#FF6A00] transition group-hover:bg-[#FF6A00] group-hover:text-white">
               <Swords size={32} />
             </div>
             <div>
-              <h2 className="text-2xl font-black text-slate-800">League of Legends</h2>
+              <h2 className="text-2xl font-black text-slate-800">Ninja Survivors</h2>
               <p className="mt-2 text-sm font-medium leading-relaxed text-slate-500">
-                Look up Riot IDs, rank, and recent matches via the Riot API.
+                Shared board for ideas, confirmed work, implemented features, and testing.
               </p>
             </div>
           </button>

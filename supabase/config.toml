@@ -1,7 +1,7 @@
 # Minimal Supabase CLI config for `npm run db:push`
 # https://supabase.com/docs/guides/cli/config
 
-project_id = ""
+project_id = "jyqkveskilclsdfwhpyi"
 
 [api]
 enabled = true

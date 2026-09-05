@@ -12,6 +12,13 @@ export type VaultCategory = "appliances" | "electronics" | "home_repair" | "vehi
 export type VaultDocType = "warranty" | "house_document" | "repair_note" | "remodel_note";
 export type ImagePhotoKind = "memory" | "person";
 export type HouseProjectKind = "repair" | "remodel" | "general";
+export type NinjaItemStage = "idea" | "working_on" | "confirmed" | "implemented";
+export type NinjaItemArea =
+  | "character_design"
+  | "level_up_system"
+  | "game_design_vfx"
+  | "core_gameplay"
+  | "character_progression";
 export type FamilyEventCategory = "general" | "meal" | "activity" | "appointment";
 export type FamilyEventKind = "regular" | "important" | "birthday" | "school";
 export type MemberColorToken =
@@ -772,6 +779,77 @@ export interface Database {
         };
         Relationships: [];
       };
+      ninja_items: {
+        Row: {
+          id: string;
+          title: string;
+          info: string;
+          details: string;
+          stage: NinjaItemStage;
+          area: NinjaItemArea;
+          owner: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          title: string;
+          info?: string;
+          details?: string;
+          stage?: NinjaItemStage;
+          area?: NinjaItemArea;
+          owner?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          title?: string;
+          info?: string;
+          details?: string;
+          stage?: NinjaItemStage;
+          area?: NinjaItemArea;
+          owner?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      ninja_item_images: {
+        Row: {
+          id: string;
+          item_id: string;
+          file_path: string;
+          file_name: string;
+          file_mime: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          item_id: string;
+          file_path: string;
+          file_name: string;
+          file_mime?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          item_id?: string;
+          file_path?: string;
+          file_name?: string;
+          file_mime?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "ninja_item_images_item_id_fkey";
+            columns: ["item_id"];
+            isOneToOne: false;
+            referencedRelation: "ninja_items";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -822,3 +900,8 @@ export type BankingAccountRow = Tables["banking_accounts"]["Row"];
 export type BankingTransactionRow = Tables["banking_transactions"]["Row"];
 export type BankingSettingsRow = Tables["banking_settings"]["Row"];
 export type BankingSettingsUpdate = Tables["banking_settings"]["Update"];
+export type NinjaItemRow = Tables["ninja_items"]["Row"];
+export type NinjaItemInsert = Tables["ninja_items"]["Insert"];
+export type NinjaItemUpdate = Tables["ninja_items"]["Update"];
+export type NinjaItemImageRow = Tables["ninja_item_images"]["Row"];
+export type NinjaItemImageInsert = Tables["ninja_item_images"]["Insert"];

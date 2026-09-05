@@ -1,8 +1,9 @@
 import { useState } from "react";
 import EerdmansHub from "./EerdmansHub";
 import { HubAuthGate } from "./components/HubAuthGate";
+import { HomeAppPasswordGate } from "./components/HomeAppPasswordGate";
 import { AppChooser, type AppDestination } from "./components/AppChooser";
-import { LeagueHub } from "./league/LeagueHub";
+import { NinjaSurvivorsHub } from "./ninja/NinjaSurvivorsHub";
 
 function AuthenticatedApps() {
   const [destination, setDestination] = useState<AppDestination | null>(null);
@@ -11,11 +12,15 @@ function AuthenticatedApps() {
     return <AppChooser onChoose={setDestination} />;
   }
 
-  if (destination === "league") {
-    return <LeagueHub onBackToChooser={() => setDestination(null)} />;
+  if (destination === "ninja") {
+    return <NinjaSurvivorsHub onBackToChooser={() => setDestination(null)} />;
   }
 
-  return <EerdmansHub onSwitchApp={() => setDestination(null)} />;
+  return (
+    <HomeAppPasswordGate onBack={() => setDestination(null)}>
+      <EerdmansHub onSwitchApp={() => setDestination(null)} />
+    </HomeAppPasswordGate>
+  );
 }
 
 export default function App() {

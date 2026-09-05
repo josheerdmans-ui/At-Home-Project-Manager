@@ -118,6 +118,10 @@ export function HubAuthGate({ children }: Props) {
     setInfo("Password updated. You’re signed in.");
   };
 
+  if (env.bypassAuth) {
+    return <>{children}</>;
+  }
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50">
