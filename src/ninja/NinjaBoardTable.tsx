@@ -15,6 +15,7 @@ type Props = {
   busy: boolean;
   onCreate: (input: { title: string; stage: NinjaItemStage; area: NinjaItemArea }) => void;
   onOpen: (item: NinjaItem) => void;
+  onViewImage: (item: NinjaItem, imageId: string) => void;
   onMove: (itemId: string, stage: NinjaItemStage, beforeId: string | null) => void;
 };
 
@@ -27,7 +28,7 @@ const STAGE_DOT: Record<NinjaItemStage, string> = {
 
 const CARD_MIME = "text/ninja-card";
 
-export function NinjaBoardTable({ area, items, busy, onCreate, onOpen, onMove }: Props) {
+export function NinjaBoardTable({ area, items, busy, onCreate, onOpen, onViewImage, onMove }: Props) {
   const [dragId, setDragId] = useState<string | null>(null);
   const [over, setOver] = useState<{ stage: NinjaItemStage; beforeId: string | null } | null>(null);
 
@@ -55,6 +56,7 @@ export function NinjaBoardTable({ area, items, busy, onCreate, onOpen, onMove }:
           over={over?.stage === stage.id ? over : null}
           onCreate={onCreate}
           onOpen={onOpen}
+          onViewImage={onViewImage}
           onDragStart={setDragId}
           onDragEnd={() => {
             setDragId(null);
@@ -78,6 +80,7 @@ function KanbanColumn({
   over,
   onCreate,
   onOpen,
+  onViewImage,
   onDragStart,
   onDragEnd,
   onHover,
@@ -92,6 +95,7 @@ function KanbanColumn({
   over: { stage: NinjaItemStage; beforeId: string | null } | null;
   onCreate: Props["onCreate"];
   onOpen: Props["onOpen"];
+  onViewImage: Props["onViewImage"];
   onDragStart: (id: string) => void;
   onDragEnd: () => void;
   onHover: (beforeId: string | null) => void;
@@ -132,6 +136,7 @@ function KanbanColumn({
               item={item}
               dragging={dragId === item.id}
               onOpen={onOpen}
+              onViewImage={onViewImage}
               onDragStart={onDragStart}
               onDragEnd={onDragEnd}
               onDragOver={(event) => {
@@ -172,6 +177,7 @@ function BoardCard({
   item,
   dragging,
   onOpen,
+  onViewImage,
   onDragStart,
   onDragEnd,
   onDragOver,
@@ -180,6 +186,7 @@ function BoardCard({
   item: NinjaItem;
   dragging: boolean;
   onOpen: (item: NinjaItem) => void;
+  onViewImage: (item: NinjaItem, imageId: string) => void;
   onDragStart: (id: string) => void;
   onDragEnd: () => void;
   onDragOver: (event: DragEvent<HTMLButtonElement>) => void;
@@ -205,9 +212,14 @@ function BoardCard({
       onDragEnd={onDragEnd}
       onDragOver={onDragOver}
       onDrop={onDrop}
-      onClick={() => {
+      onClick={(event) => {
         if (suppressClick) {
           setSuppressClick(false);
+          return;
+        }
+        const target = event.target;
+        if (target instanceof HTMLImageElement && target.dataset.imageId) {
+          onViewImage(item, target.dataset.imageId);
           return;
         }
         onOpen(item);
@@ -220,6 +232,7 @@ function BoardCard({
         <img
           src={ninjaImagePublicUrl(preview[0]!.filePath)}
           alt=""
+          data-image-id={preview[0]!.id}
           draggable={false}
           className="mb-3 h-28 w-full rounded-lg object-cover"
         />
@@ -231,6 +244,7 @@ function BoardCard({
               key={image.id}
               src={ninjaImagePublicUrl(image.filePath)}
               alt=""
+              data-image-id={image.id}
               draggable={false}
               className="h-14 w-full rounded-md object-cover"
             />

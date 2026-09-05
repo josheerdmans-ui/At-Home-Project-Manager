@@ -25,6 +25,7 @@ import {
   ninjaImagePublicUrl,
 } from "./ninja-types";
 import type { NinjaItemInput } from "./useNinjaItems";
+import { NinjaImageViewer } from "./NinjaImageViewer";
 import { NINJA, tagStyle } from "./ninja-ui";
 
 type Props = {
@@ -50,7 +51,7 @@ const STAGE_PILL: Record<NinjaItemStage, string> = {
 };
 
 const INFO_MAX = 500;
-const DETAILS_MAX = 2000;
+const DETAILS_MAX = 20000;
 
 export function NinjaItemModal({
   item,
@@ -77,6 +78,7 @@ export function NinjaItemModal({
   const [checkDraft, setCheckDraft] = useState("");
   const [addingTag, setAddingTag] = useState(false);
   const [addingCheck, setAddingCheck] = useState(false);
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -320,7 +322,7 @@ export function NinjaItemModal({
               </div>
 
               <FieldLabel icon={<Info size={14} />} text="Info" />
-              <div className="relative mb-4">
+              <div className="relative">
                 <textarea
                   rows={3}
                   maxLength={INFO_MAX}
@@ -330,20 +332,6 @@ export function NinjaItemModal({
                 />
                 <span className="absolute right-3 bottom-2 text-[11px] text-zinc-500">
                   {info.length}/{INFO_MAX}
-                </span>
-              </div>
-
-              <FieldLabel icon={<FileText size={14} />} text="Details" />
-              <div className="relative">
-                <textarea
-                  rows={6}
-                  maxLength={DETAILS_MAX}
-                  value={details}
-                  onChange={(e) => setDetails(e.target.value.slice(0, DETAILS_MAX))}
-                  className={`w-full pr-16 ${NINJA.input}`}
-                />
-                <span className="absolute right-3 bottom-2 text-[11px] text-zinc-500">
-                  {details.length}/{DETAILS_MAX}
                 </span>
               </div>
             </div>
@@ -425,13 +413,19 @@ export function NinjaItemModal({
                   </span>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  {item.images.map((image) => (
+                  {item.images.map((image, imageIndex) => (
                     <div key={image.id} className="relative overflow-hidden rounded-lg">
-                      <img
-                        src={ninjaImagePublicUrl(image.filePath)}
-                        alt={image.fileName}
-                        className="h-28 w-full object-cover"
-                      />
+                      <button
+                        type="button"
+                        onClick={() => setPreviewIndex(imageIndex)}
+                        className="block w-full"
+                      >
+                        <img
+                          src={ninjaImagePublicUrl(image.filePath)}
+                          alt={image.fileName}
+                          className="h-28 w-full object-cover transition hover:brightness-110"
+                        />
+                      </button>
                       <button
                         type="button"
                         disabled={busy}
@@ -499,6 +493,23 @@ export function NinjaItemModal({
               </section>
             </div>
           </div>
+
+          <section className="mt-8 rounded-2xl border border-white/10 bg-[#1E2028]/70 p-4">
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <FieldLabel icon={<FileText size={14} />} text="Details" className="mb-0" />
+              <span className="text-[11px] text-zinc-500">
+                {details.length}/{DETAILS_MAX}
+              </span>
+            </div>
+            <textarea
+              rows={16}
+              maxLength={DETAILS_MAX}
+              value={details}
+              onChange={(e) => setDetails(e.target.value.slice(0, DETAILS_MAX))}
+              placeholder="Paste or write the full details here..."
+              className={`${NINJA.input} min-h-72 w-full resize-y whitespace-pre-wrap font-mono text-xs leading-5`}
+            />
+          </section>
         </div>
 
         <footer className="flex items-center justify-between gap-3 border-t border-white/8 px-7 py-4">
@@ -529,6 +540,14 @@ export function NinjaItemModal({
           </div>
         </footer>
       </form>
+      {previewIndex !== null && item.images[previewIndex] && (
+        <NinjaImageViewer
+          images={item.images}
+          index={previewIndex}
+          onClose={() => setPreviewIndex(null)}
+          onIndex={setPreviewIndex}
+        />
+      )}
     </div>
   );
 }

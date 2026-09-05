@@ -6,6 +6,7 @@ import {
   CircleHelp,
   Filter,
   Gamepad2,
+  LayoutDashboard,
   Plus,
   Search,
   Settings,
@@ -16,9 +17,11 @@ import {
 import { DbSetupPanel } from "../components/DbSetupPanel";
 import { NINJA_SURVIVORS_SETUP_SQL } from "../lib/ninja-survivors-setup-sql";
 import { NinjaBoardTable } from "./NinjaBoardTable";
+import { NinjaDashboard } from "./NinjaDashboard";
 import { NinjaItemModal } from "./NinjaItemModal";
 import { NinjaSaveToast } from "./NinjaSaveToast";
 import { initialsFromName, NINJA_AREAS, type NinjaItemArea, type NinjaItemStage } from "./ninja-types";
+import { NinjaImageViewer } from "./NinjaImageViewer";
 import { nextSortOrder, planCardMove } from "./ninja-dnd";
 import { NinjaIcon, NinjaLogo } from "./NinjaBrand";
 import { NINJA } from "./ninja-ui";
@@ -27,6 +30,10 @@ import {
   useNinjaItems,
   useNinjaItemsMutations,
 } from "./useNinjaItems";
+import { useNinjaIdeas, useNinjaIdeasMutations } from "./useNinjaIdeas";
+import { useNinjaProgress, useNinjaProgressMutations } from "./useNinjaProgress";
+
+type HubScreen = "dashboard" | NinjaItemArea;
 
 type Props = {
   user: string;
@@ -45,8 +52,14 @@ const AREA_ICONS: Record<NinjaItemArea, typeof UserRound> = {
 export function NinjaSurvivorsHub({ user, onSwitchPerson, onBackToChooser }: Props) {
   const { data: items = [], isLoading, error } = useNinjaItems();
   const mut = useNinjaItemsMutations();
-  const [area, setArea] = useState<NinjaItemArea>("character_design");
+  const ideasQuery = useNinjaIdeas();
+  const ideaMut = useNinjaIdeasMutations();
+  const progressQuery = useNinjaProgress();
+  const progressMut = useNinjaProgressMutations();
+  const [screen, setScreen] = useState<HubScreen>("dashboard");
+  const area: NinjaItemArea = screen === "dashboard" ? "character_design" : screen;
   const [openId, setOpenId] = useState<string | null>(null);
+  const [preview, setPreview] = useState<{ itemId: string; imageId: string } | null>(null);
   const [saveNotice, setSaveNotice] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [ownerFilter, setOwnerFilter] = useState("");
@@ -71,10 +84,13 @@ export function NinjaSurvivorsHub({ user, onSwitchPerson, onBackToChooser }: Pro
     saveTimer.current = window.setTimeout(() => setSaveNotice(null), 2200);
   };
 
-  const currentArea = NINJA_AREAS.find((entry) => entry.id === area) ?? {
-    id: area,
-    label: "Character Design",
-  };
+  const currentArea =
+    screen === "dashboard"
+      ? { id: "dashboard" as const, label: "Dashboard" }
+      : (NINJA_AREAS.find((entry) => entry.id === screen) ?? {
+          id: screen,
+          label: "Character Design",
+        });
   const ownerOptions = useMemo(
     () =>
       Array.from(
@@ -109,6 +125,9 @@ export function NinjaSurvivorsHub({ user, onSwitchPerson, onBackToChooser }: Pro
     });
   }, [items, area, query, ownerFilter]);
   const openItem = items.find((item) => item.id === openId) ?? null;
+  const previewItem = preview ? (items.find((item) => item.id === preview.itemId) ?? null) : null;
+  const previewImages = previewItem?.images ?? [];
+  const previewIndex = preview ? previewImages.findIndex((image) => image.id === preview.imageId) : -1;
   const busy =
     mut.createItem.isPending ||
     mut.updateItem.isPending ||
@@ -118,7 +137,12 @@ export function NinjaSurvivorsHub({ user, onSwitchPerson, onBackToChooser }: Pro
     mut.addCheck.isPending ||
     mut.toggleCheck.isPending ||
     mut.deleteCheck.isPending ||
-    mut.moveCards.isPending;
+    mut.moveCards.isPending ||
+    ideaMut.createIdea.isPending ||
+    ideaMut.toggleVote.isPending ||
+    ideaMut.deleteIdea.isPending ||
+    progressMut.createUpdate.isPending ||
+    progressMut.deleteUpdate.isPending;
   const mutationError =
     mut.createItem.error?.message ??
     mut.updateItem.error?.message ??
@@ -126,23 +150,29 @@ export function NinjaSurvivorsHub({ user, onSwitchPerson, onBackToChooser }: Pro
     mut.deleteItem.error?.message ??
     mut.deleteImage.error?.message;
 
-  const createCard = (title: string, stage: NinjaItemStage) => {
+  const createCard = (
+    title: string,
+    stage: NinjaItemStage,
+    destArea: NinjaItemArea = area,
+    extra?: { info?: string; tags?: string[] },
+  ) => {
     mut.createItem.mutate(
       {
         title,
-        info: "",
+        info: extra?.info ?? "",
         details: "",
         stage,
-        area,
+        area: destArea,
         owner: user,
         dueDate: null,
         priority: "medium",
-        tags: [],
-        sortOrder: nextSortOrder(items, area, stage),
+        tags: extra?.tags ?? [],
+        sortOrder: nextSortOrder(items, destArea, stage),
       },
       {
         onSuccess: (created) => {
           flashSaved("Card created");
+          setScreen(destArea);
           setOpenId(created.id);
         },
       },
@@ -153,9 +183,10 @@ export function NinjaSurvivorsHub({ user, onSwitchPerson, onBackToChooser }: Pro
     return (
       <div className={`relative flex min-h-screen overflow-hidden ${NINJA.page}`}>
         <Sidebar
-          area={area}
+          screen={screen}
           counts={areaCounts}
-          onAreaChange={setArea}
+          ideaCount={0}
+          onScreenChange={setScreen}
           onBackToChooser={onBackToChooser}
         />
         <div className="flex flex-1 items-center justify-center p-6">
@@ -170,9 +201,10 @@ export function NinjaSurvivorsHub({ user, onSwitchPerson, onBackToChooser }: Pro
       <div className="pointer-events-none absolute -top-28 right-10 h-80 w-80 rounded-full bg-[#8B5CF6]/20 blur-[130px]" />
       <div className="pointer-events-none absolute bottom-0 left-1/3 h-72 w-72 rounded-full bg-[#FF8C42]/10 blur-[120px]" />
       <Sidebar
-        area={area}
+        screen={screen}
         counts={areaCounts}
-        onAreaChange={setArea}
+        ideaCount={ideasQuery.data?.length ?? 0}
+        onScreenChange={setScreen}
         onBackToChooser={onBackToChooser}
       />
 
@@ -184,10 +216,14 @@ export function NinjaSurvivorsHub({ user, onSwitchPerson, onBackToChooser }: Pro
             </p>
             <h1 className="mt-1 text-3xl font-black tracking-tight text-white">{currentArea.label}</h1>
             <p className="mt-1 text-sm text-zinc-400">
-              Cards by section — click a card to add info, details, and images.
+              {screen === "dashboard"
+                ? "Studio snapshot, newest cards, and quick ideas the team can vote on."
+                : "Cards by section — click a card to add info, details, and images."}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            {screen !== "dashboard" && (
+              <>
             <label className="flex items-center gap-2 rounded-full border border-white/10 bg-[#16181F] px-3 py-2 text-sm text-zinc-400">
               <Search size={15} />
               <input
@@ -250,6 +286,8 @@ export function NinjaSurvivorsHub({ user, onSwitchPerson, onBackToChooser }: Pro
               <Plus size={15} />
               New card
             </button>
+              </>
+            )}
             <button type="button" className="rounded-full p-2 text-zinc-400 hover:bg-white/5" aria-label="Notifications">
               <Bell size={18} />
             </button>
@@ -273,19 +311,35 @@ export function NinjaSurvivorsHub({ user, onSwitchPerson, onBackToChooser }: Pro
             <NinjaLogo className="h-8 min-w-0 flex-1" />
           </div>
           <div className="mb-3 flex gap-2 overflow-x-auto md:hidden">
+            <button
+              type="button"
+              onClick={() => setScreen("dashboard")}
+              className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold ${
+                screen === "dashboard" ? "bg-[#FF8C42] text-white" : "bg-[#1E2028] text-zinc-300"
+              }`}
+            >
+              Dashboard
+              <span
+                className={`inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] ${
+                  screen === "dashboard" ? "bg-white/20 text-white" : "bg-[#FF8C42] text-white"
+                }`}
+              >
+                {ideasQuery.data?.length ?? 0}
+              </span>
+            </button>
             {NINJA_AREAS.map((entry) => (
               <button
                 key={entry.id}
                 type="button"
-                onClick={() => setArea(entry.id)}
+                onClick={() => setScreen(entry.id)}
                 className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold ${
-                  entry.id === area ? "bg-[#FF8C42] text-white" : "bg-[#1E2028] text-zinc-300"
+                  entry.id === screen ? "bg-[#FF8C42] text-white" : "bg-[#1E2028] text-zinc-300"
                 }`}
               >
                 {entry.label}
                 <span
                   className={`inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] ${
-                    entry.id === area ? "bg-white/20 text-white" : "bg-[#FF8C42] text-white"
+                    entry.id === screen ? "bg-white/20 text-white" : "bg-[#FF8C42] text-white"
                   }`}
                 >
                   {areaCounts[entry.id]}
@@ -302,12 +356,88 @@ export function NinjaSurvivorsHub({ user, onSwitchPerson, onBackToChooser }: Pro
 
           {isLoading ? (
             <p className="text-sm font-medium text-zinc-400">Loading board…</p>
+          ) : screen === "dashboard" ? (
+            <NinjaDashboard
+              user={user}
+              items={items}
+              ideas={ideasQuery.data ?? []}
+              ideasLoading={ideasQuery.isLoading}
+              ideasError={
+                ideasQuery.error
+                  ? `Could not load ideas: ${ideasQuery.error.message}`
+                  : (ideaMut.createIdea.error?.message ??
+                    ideaMut.toggleVote.error?.message ??
+                    ideaMut.deleteIdea.error?.message ??
+                    null)
+              }
+              busy={busy}
+              onOpenItem={(item) => setOpenId(item.id)}
+              onAddIdea={(title) =>
+                ideaMut.createIdea.mutate(
+                  { title, createdBy: user },
+                  { onSuccess: () => flashSaved("Idea added") },
+                )
+              }
+              onVote={(idea) => ideaMut.toggleVote.mutate({ idea, voter: user })}
+              onPromoteIdea={(idea, destArea) => {
+                mut.createItem.mutate(
+                  {
+                    title: idea.title,
+                    info: idea.voters.length > 0 ? `Hearted by: ${idea.voters.join(", ")}` : "",
+                    details: "",
+                    stage: "idea",
+                    area: destArea,
+                    owner: user,
+                    dueDate: null,
+                    priority: "medium",
+                    tags: ["quick-idea"],
+                    sortOrder: nextSortOrder(items, destArea, "idea"),
+                  },
+                  {
+                    onSuccess: (created) => {
+                      ideaMut.deleteIdea.mutate(idea.id);
+                      flashSaved("Moved to board");
+                      setScreen(destArea);
+                      setOpenId(created.id);
+                    },
+                  },
+                );
+              }}
+              updates={progressQuery.data ?? []}
+              updatesLoading={progressQuery.isLoading}
+              updatesError={
+                progressQuery.error
+                  ? `Could not load updates: ${progressQuery.error.message}`
+                  : (progressMut.createUpdate.error?.message ??
+                    progressMut.deleteUpdate.error?.message ??
+                    null)
+              }
+              onAddUpdate={({ version, title, body }) =>
+                progressMut.createUpdate.mutate(
+                  { version, title, body, createdBy: user },
+                  { onSuccess: () => flashSaved("Progress posted") },
+                )
+              }
+              onDeleteUpdate={(update) => {
+                if (confirm(`Delete Godot ${update.version} update?`)) {
+                  progressMut.deleteUpdate.mutate(update.id, {
+                    onSuccess: () => flashSaved("Update removed"),
+                  });
+                }
+              }}
+              onDeleteIdea={(idea) => {
+                if (confirm(`Delete idea "${idea.title}"?`)) {
+                  ideaMut.deleteIdea.mutate(idea.id, { onSuccess: () => flashSaved("Idea removed") });
+                }
+              }}
+            />
           ) : (
             <NinjaBoardTable
               area={area}
               items={areaItems}
               busy={busy}
               onOpen={(item) => setOpenId(item.id)}
+              onViewImage={(item, imageId) => setPreview({ itemId: item.id, imageId })}
               onCreate={(input) => createCard(input.title, input.stage)}
               onMove={(itemId, stage, beforeId) => {
                 const dragged = items.find((item) => item.id === itemId);
@@ -378,20 +508,34 @@ export function NinjaSurvivorsHub({ user, onSwitchPerson, onBackToChooser }: Pro
         />
       )}
 
+      {preview && previewIndex >= 0 && (
+        <NinjaImageViewer
+          images={previewImages}
+          index={previewIndex}
+          onClose={() => setPreview(null)}
+          onIndex={(next) => {
+            const image = previewImages[next];
+            if (image) setPreview({ itemId: preview.itemId, imageId: image.id });
+          }}
+        />
+      )}
+
       <NinjaSaveToast message={saveNotice} />
     </div>
   );
 }
 
 function Sidebar({
-  area,
+  screen,
   counts,
-  onAreaChange,
+  ideaCount,
+  onScreenChange,
   onBackToChooser,
 }: {
-  area: NinjaItemArea;
+  screen: HubScreen;
   counts: Record<NinjaItemArea, number>;
-  onAreaChange: (area: NinjaItemArea) => void;
+  ideaCount: number;
+  onScreenChange: (screen: HubScreen) => void;
   onBackToChooser: () => void;
 }) {
   return (
@@ -405,14 +549,29 @@ function Sidebar({
       </div>
 
       <nav className="flex flex-1 flex-col gap-1">
+        <button
+          type="button"
+          onClick={() => onScreenChange("dashboard")}
+          className={`flex items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm font-semibold transition ${
+            screen === "dashboard"
+              ? "bg-[#FF8C42]/15 text-white shadow-[0_0_24px_rgba(255,140,66,0.12)]"
+              : "text-zinc-400 hover:bg-white/5 hover:text-zinc-200"
+          }`}
+        >
+          <LayoutDashboard size={16} className={`shrink-0 ${screen === "dashboard" ? "text-[#FF8C42]" : ""}`} />
+          <span className="min-w-0 flex-1 truncate">Dashboard</span>
+          <span className="inline-flex min-w-5 shrink-0 items-center justify-center rounded-full bg-[#FF8C42] px-1.5 py-0.5 text-[10px] font-bold text-white">
+            {ideaCount}
+          </span>
+        </button>
         {NINJA_AREAS.map((entry) => {
           const Icon = AREA_ICONS[entry.id];
-          const active = entry.id === area;
+          const active = entry.id === screen;
           return (
             <button
               key={entry.id}
               type="button"
-              onClick={() => onAreaChange(entry.id)}
+              onClick={() => onScreenChange(entry.id)}
               className={`flex items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm font-semibold transition ${
                 active
                   ? "bg-[#FF8C42]/15 text-white shadow-[0_0_24px_rgba(255,140,66,0.12)]"

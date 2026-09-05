@@ -930,6 +930,83 @@ export interface Database {
           },
         ];
       };
+      ninja_ideas: {
+        Row: {
+          id: string;
+          title: string;
+          created_by: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          title: string;
+          created_by: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          title?: string;
+          created_by?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      ninja_idea_votes: {
+        Row: {
+          id: string;
+          idea_id: string;
+          voter: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          idea_id: string;
+          voter: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          idea_id?: string;
+          voter?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "ninja_idea_votes_idea_id_fkey";
+            columns: ["idea_id"];
+            isOneToOne: false;
+            referencedRelation: "ninja_ideas";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      ninja_progress_updates: {
+        Row: {
+          id: string;
+          version: string;
+          title: string;
+          body: string;
+          created_by: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          version: string;
+          title?: string;
+          body?: string;
+          created_by: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          version?: string;
+          title?: string;
+          body?: string;
+          created_by?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -989,3 +1066,9 @@ export type NinjaItemCheckRow = Tables["ninja_item_checks"]["Row"];
 export type NinjaItemCheckInsert = Tables["ninja_item_checks"]["Insert"];
 export type NinjaItemActivityRow = Tables["ninja_item_activity"]["Row"];
 export type NinjaItemActivityInsert = Tables["ninja_item_activity"]["Insert"];
+export type NinjaIdeaRow = Tables["ninja_ideas"]["Row"];
+export type NinjaIdeaInsert = Tables["ninja_ideas"]["Insert"];
+export type NinjaIdeaVoteRow = Tables["ninja_idea_votes"]["Row"];
+export type NinjaIdeaVoteInsert = Tables["ninja_idea_votes"]["Insert"];
+export type NinjaProgressUpdateRow = Tables["ninja_progress_updates"]["Row"];
+export type NinjaProgressUpdateInsert = Tables["ninja_progress_updates"]["Insert"];

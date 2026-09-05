@@ -26,6 +26,23 @@ export type NinjaItemActivity = {
   createdAt: string;
 };
 
+export type NinjaProgressUpdate = {
+  id: string;
+  version: string;
+  title: string;
+  body: string;
+  createdBy: string;
+  createdAt: string;
+};
+
+export type NinjaIdea = {
+  id: string;
+  title: string;
+  createdBy: string;
+  createdAt: string;
+  voters: string[];
+};
+
 export type NinjaItem = {
   id: string;
   title: string;

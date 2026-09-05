@@ -36,7 +36,7 @@ export function isMissingNinjaItemsTableError(message: string) {
   const lower = message.toLowerCase();
   return (
     lower.includes("schema cache") ||
-    (lower.includes("ninja_item") &&
+    ((lower.includes("ninja_item") || lower.includes("ninja_idea")) &&
       (lower.includes("could not find the table") ||
         lower.includes("does not exist") ||
         lower.includes("relation"))) ||
