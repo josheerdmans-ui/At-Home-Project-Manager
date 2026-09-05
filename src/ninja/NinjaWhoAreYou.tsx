@@ -1,6 +1,7 @@
 import { useState, type FormEvent, type ReactNode } from "react";
-import { Swords } from "lucide-react";
 import { clearNinjaUser, readNinjaUser, writeNinjaUser } from "./ninja-session";
+import { NinjaIcon, NinjaLogo } from "./NinjaBrand";
+import { NINJA } from "./ninja-ui";
 
 type Props = {
   onBack: () => void;
@@ -36,29 +37,25 @@ export function NinjaWhoAreYou({ onBack, children }: Props) {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#f4f6f8] p-6">
-      <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-8 shadow-[0_16px_40px_rgba(15,23,42,0.08)]">
-        <div className="mb-6 flex items-center gap-3">
-          <div className="rounded-xl bg-[#FF6A00] p-2 text-white">
-            <Swords size={18} />
-          </div>
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#FF6A00]">
-              Studio
-            </p>
-            <h1 className="text-lg font-black text-slate-900">Ninja Survivors</h1>
-          </div>
+    <div className={`relative flex min-h-screen items-center justify-center overflow-hidden p-6 ${NINJA.page}`}>
+      <div className="pointer-events-none absolute -top-24 right-0 h-80 w-80 rounded-full bg-[#8B5CF6]/25 blur-[120px]" />
+      <div className="pointer-events-none absolute -bottom-20 left-0 h-72 w-72 rounded-full bg-[#FF8C42]/15 blur-[110px]" />
+
+      <div className="relative w-full max-w-md rounded-3xl border border-white/10 bg-[#1E2028]/80 p-8 shadow-[0_24px_80px_rgba(0,0,0,0.45)] backdrop-blur-xl">
+        <div className="mb-6 flex flex-col items-center text-center">
+          <NinjaIcon className="mb-3 h-24 w-24 ring-1 ring-[#FF8C42]/40" />
+          <NinjaLogo className="h-14 w-full max-w-xs" />
         </div>
 
-        <h2 className="text-2xl font-black tracking-tight text-slate-900">Who is this?</h2>
-        <p className="mt-2 text-sm text-slate-500">
+        <h2 className="text-2xl font-black tracking-tight text-white">Who is this?</h2>
+        <p className="mt-2 text-sm text-zinc-400">
           Type your name so the board knows who is moving cards and leaving updates. No login
           needed — this stays on this computer.
         </p>
 
         <form onSubmit={submit} className="mt-6 space-y-4">
           <label className="block">
-            <span className="mb-1 block text-sm font-semibold text-slate-600">Your name</span>
+            <span className="mb-1 block text-sm font-semibold text-zinc-300">Your name</span>
             <input
               autoFocus
               required
@@ -66,13 +63,10 @@ export function NinjaWhoAreYou({ onBack, children }: Props) {
               value={name}
               onChange={(event) => setName(event.target.value)}
               placeholder="Taylor Kim"
-              className="w-full rounded-xl border border-slate-200 bg-[#f8fafc] px-4 py-2.5 text-slate-800 outline-none focus:border-[#FF6A00]"
+              className={`w-full ${NINJA.input}`}
             />
           </label>
-          <button
-            type="submit"
-            className="w-full rounded-full bg-[#FF6A00] py-3 text-sm font-bold text-white hover:bg-[#e65f00]"
-          >
+          <button type="submit" className={`w-full rounded-full py-3 text-sm font-bold ${NINJA.orangeBtn}`}>
             Continue
           </button>
         </form>
@@ -80,7 +74,7 @@ export function NinjaWhoAreYou({ onBack, children }: Props) {
         <button
           type="button"
           onClick={onBack}
-          className="mt-4 w-full text-center text-sm font-medium text-slate-500 hover:text-[#FF6A00]"
+          className="mt-4 w-full text-center text-sm font-medium text-zinc-500 hover:text-[#FF8C42]"
         >
           Back to apps
         </button>

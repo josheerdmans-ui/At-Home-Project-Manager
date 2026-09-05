@@ -301,33 +301,42 @@ export function useNinjaItemsMutations() {
   const uploadImage = useMutation({
     mutationFn: async ({
       itemId,
-      file,
+      files,
       actor,
     }: {
       itemId: string;
-      file: File;
+      files: File[];
       actor?: string | null;
     }) => {
-      const id = crypto.randomUUID();
-      const safeName = sanitizeNinjaFileName(file.name);
-      const path = `ninja-items/${itemId}/${id}-${safeName}`;
+      const uploaded: NinjaItemImage[] = [];
+      for (const file of files) {
+        const id = crypto.randomUUID();
+        const safeName = sanitizeNinjaFileName(file.name);
+        const path = `ninja-items/${itemId}/${id}-${safeName}`;
 
-      const { error: uploadError } = await supabase.storage
-        .from("vault-files")
-        .upload(path, file, { upsert: true });
-      if (uploadError) throw uploadError;
+        const { error: uploadError } = await supabase.storage
+          .from("vault-files")
+          .upload(path, file, { upsert: true });
+        if (uploadError) throw uploadError;
 
-      const row: NinjaItemImageInsert = {
-        id,
-        item_id: itemId,
-        file_path: path,
-        file_name: file.name,
-        file_mime: file.type || "image/jpeg",
-      };
-      const { data, error } = await supabase.from("ninja_item_images").insert(row).select().single();
-      if (error) throw error;
-      await logActivity(itemId, actorFrom(actor), "Added an image to this card.");
-      return rowToImage(data);
+        const row: NinjaItemImageInsert = {
+          id,
+          item_id: itemId,
+          file_path: path,
+          file_name: file.name,
+          file_mime: file.type || "image/jpeg",
+        };
+        const { data, error } = await supabase.from("ninja_item_images").insert(row).select().single();
+        if (error) throw error;
+        uploaded.push(rowToImage(data));
+      }
+      const count = uploaded.length;
+      await logActivity(
+        itemId,
+        actorFrom(actor),
+        count === 1 ? "Added an image to this card." : `Added ${count} images to this card.`,
+      );
+      return uploaded;
     },
     onSuccess: invalidate,
   });

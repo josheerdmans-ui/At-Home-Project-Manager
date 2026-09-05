@@ -1,4 +1,4 @@
-import { useState, type DragEvent, type FormEvent } from "react";
+import { useState, type DragEvent } from "react";
 import { CalendarDays, Image as ImageIcon, MoreHorizontal, Plus } from "lucide-react";
 import type { NinjaItem, NinjaItemArea, NinjaItemStage } from "./ninja-types";
 import {
@@ -19,10 +19,10 @@ type Props = {
 };
 
 const STAGE_DOT: Record<NinjaItemStage, string> = {
-  idea: "bg-sky-400",
-  working_on: "bg-[#FF6A00]",
-  confirmed: "bg-violet-400",
-  implemented: "bg-emerald-500",
+  idea: "bg-[#2DD4BF] shadow-[0_0_10px_rgba(45,212,191,0.7)]",
+  working_on: "bg-[#FF8C42] shadow-[0_0_10px_rgba(255,140,66,0.7)]",
+  confirmed: "bg-[#D946EF] shadow-[0_0_10px_rgba(217,70,239,0.7)]",
+  implemented: "bg-[#22C55E] shadow-[0_0_10px_rgba(34,197,94,0.55)]",
 };
 
 const CARD_MIME = "text/ninja-card";
@@ -97,21 +97,6 @@ function KanbanColumn({
   onHover: (beforeId: string | null) => void;
   onDrop: (stage: NinjaItemStage, beforeId: string | null) => void;
 }) {
-  const [draft, setDraft] = useState("");
-  const [adding, setAdding] = useState(false);
-
-  const submitDraft = (e: FormEvent) => {
-    e.preventDefault();
-    const title = draft.trim();
-    if (!title) {
-      setAdding(false);
-      return;
-    }
-    onCreate({ title, stage, area });
-    setDraft("");
-    setAdding(false);
-  };
-
   const allowDrop = (event: DragEvent) => {
     if (!dragId) return;
     event.preventDefault();
@@ -128,15 +113,15 @@ function KanbanColumn({
         event.preventDefault();
         onDrop(stage, null);
       }}
-      className={`flex min-h-[28rem] min-w-[260px] flex-col rounded-2xl p-3 transition ${
-        over ? "bg-[#e4eaf1] ring-2 ring-[#FF6A00]/30" : "bg-[#eef2f6]"
+      className={`flex min-h-[28rem] min-w-[260px] flex-col rounded-3xl p-3 transition ${
+        over ? "bg-white/8 ring-2 ring-[#FF8C42]/40" : "bg-[#16181F]/80"
       }`}
     >
       <header className="mb-3 flex items-center gap-2 px-1">
-        <span className={`h-2.5 w-2.5 rounded-sm ${STAGE_DOT[stage]}`} />
-        <h3 className="text-sm font-bold text-slate-800">{label}</h3>
-        <span className="text-xs font-semibold text-slate-400">{items.length}</span>
-        <MoreHorizontal size={14} className="ml-auto text-slate-300" />
+        <span className={`h-2.5 w-2.5 rounded-full ${STAGE_DOT[stage]}`} />
+        <h3 className="text-sm font-bold text-white">{label}</h3>
+        <span className="text-xs font-semibold text-zinc-500">{items.length}</span>
+        <MoreHorizontal size={14} className="ml-auto text-zinc-600" />
       </header>
 
       <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-auto pr-0.5">
@@ -166,36 +151,21 @@ function KanbanColumn({
         {over && over.beforeId === null && items.length > 0 && <DropLine />}
       </div>
 
-      {adding ? (
-        <form onSubmit={submitDraft} className="mt-3">
-          <input
-            autoFocus
-            value={draft}
-            disabled={busy}
-            onChange={(e) => setDraft(e.target.value)}
-            onBlur={() => {
-              if (!draft.trim()) setAdding(false);
-            }}
-            placeholder="Card title"
-            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none"
-          />
-        </form>
-      ) : (
-        <button
-          type="button"
-          onClick={() => setAdding(true)}
-          className="mt-3 flex items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300 bg-white/60 py-2.5 text-sm font-semibold text-slate-500 hover:border-[#FF6A00] hover:text-[#FF6A00]"
-        >
-          <Plus size={14} />
-          Add a card
-        </button>
-      )}
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => onCreate({ title: "Untitled card", stage, area })}
+        className="mt-3 flex items-center justify-center gap-2 rounded-2xl border border-dashed border-[#FF8C42]/40 bg-[#FF8C42]/10 py-2.5 text-sm font-semibold text-[#FF8C42] hover:border-[#FF8C42] hover:bg-[#FF8C42]/20 disabled:opacity-50"
+      >
+        <Plus size={14} />
+        Add a card
+      </button>
     </section>
   );
 }
 
 function DropLine() {
-  return <div className="mb-3 h-1 rounded-full bg-[#FF6A00]" />;
+  return <div className="mb-3 h-1 rounded-full bg-[#FF8C42] shadow-[0_0_12px_rgba(255,140,66,0.8)]" />;
 }
 
 function BoardCard({
@@ -242,7 +212,7 @@ function BoardCard({
         }
         onOpen(item);
       }}
-      className={`w-full cursor-grab rounded-xl bg-white p-3 text-left shadow-[0_8px_24px_rgba(15,23,42,0.06)] transition hover:-translate-y-0.5 hover:shadow-[0_12px_28px_rgba(15,23,42,0.1)] active:cursor-grabbing ${
+      className={`w-full cursor-grab rounded-2xl border border-white/8 bg-[#1E2028] p-3 text-left shadow-[0_12px_32px_rgba(0,0,0,0.35)] transition hover:-translate-y-0.5 hover:border-white/15 hover:shadow-[0_18px_40px_rgba(0,0,0,0.5)] active:cursor-grabbing ${
         dragging ? "opacity-40" : ""
       }`}
     >
@@ -268,8 +238,8 @@ function BoardCard({
         </div>
       )}
 
-      <h4 className="text-sm font-bold text-slate-900">{item.title}</h4>
-      {item.info && <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">{item.info}</p>}
+      <h4 className="text-sm font-bold text-white">{item.title}</h4>
+      {item.info && <p className="mt-1 line-clamp-2 text-xs leading-5 text-zinc-400">{item.info}</p>}
 
       {item.tags.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-1.5">
@@ -283,11 +253,11 @@ function BoardCard({
 
       {total > 0 && (
         <div className="mt-3">
-          <div className="mb-1 flex justify-end text-[10px] font-semibold text-slate-400">
+          <div className="mb-1 flex justify-end text-[10px] font-semibold text-zinc-500">
             {done}/{total}
           </div>
-          <div className="h-1.5 overflow-hidden rounded-full bg-slate-100">
-            <div className="h-full rounded-full bg-emerald-500" style={{ width: `${progress}%` }} />
+          <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
+            <div className="h-full rounded-full bg-[#FF8C42]" style={{ width: `${progress}%` }} />
           </div>
         </div>
       )}
@@ -296,16 +266,16 @@ function BoardCard({
         <div className="flex min-w-0 items-center gap-1.5">
           {item.owner ? (
             <>
-              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-slate-200 text-[9px] font-bold text-slate-700">
+              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#FF8C42]/20 text-[9px] font-bold text-[#FF8C42]">
                 {initialsFromName(item.owner)}
               </span>
-              <span className="truncate text-xs font-medium text-slate-600">{item.owner}</span>
+              <span className="truncate text-xs font-medium text-zinc-300">{item.owner}</span>
             </>
           ) : (
-            <span className="text-xs text-slate-400">Unassigned</span>
+            <span className="text-xs text-zinc-500">Unassigned</span>
           )}
         </div>
-        <div className="flex shrink-0 items-center gap-2 text-[10px] font-medium text-slate-400">
+        <div className="flex shrink-0 items-center gap-2 text-[10px] font-medium text-zinc-500">
           {item.images.length > 0 && (
             <span className="inline-flex items-center gap-1">
               <ImageIcon size={11} />

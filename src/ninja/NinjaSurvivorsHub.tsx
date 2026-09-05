@@ -10,7 +10,6 @@ import {
   Search,
   Settings,
   Sparkles,
-  Swords,
   TrendingUp,
   UserRound,
 } from "lucide-react";
@@ -21,6 +20,8 @@ import { NinjaItemModal } from "./NinjaItemModal";
 import { NinjaSaveToast } from "./NinjaSaveToast";
 import { initialsFromName, NINJA_AREAS, type NinjaItemArea, type NinjaItemStage } from "./ninja-types";
 import { nextSortOrder, planCardMove } from "./ninja-dnd";
+import { NinjaIcon, NinjaLogo } from "./NinjaBrand";
+import { NINJA } from "./ninja-ui";
 import {
   isMissingNinjaItemsTableError,
   useNinjaItems,
@@ -84,6 +85,16 @@ export function NinjaSurvivorsHub({ user, onSwitchPerson, onBackToChooser }: Pro
     [items, user],
   );
   const displayName = user;
+  const areaCounts = useMemo(() => {
+    const counts = Object.fromEntries(NINJA_AREAS.map((entry) => [entry.id, 0])) as Record<
+      NinjaItemArea,
+      number
+    >;
+    for (const item of items) {
+      counts[item.area] += 1;
+    }
+    return counts;
+  }, [items]);
   const areaItems = useMemo(() => {
     const needle = query.trim().toLowerCase();
     return items.filter((item) => {
@@ -140,8 +151,13 @@ export function NinjaSurvivorsHub({ user, onSwitchPerson, onBackToChooser }: Pro
 
   if (error && isMissingNinjaItemsTableError(error.message)) {
     return (
-      <div className="flex min-h-screen bg-[#f4f6f8]">
-        <Sidebar area={area} onAreaChange={setArea} onBackToChooser={onBackToChooser} />
+      <div className={`relative flex min-h-screen overflow-hidden ${NINJA.page}`}>
+        <Sidebar
+          area={area}
+          counts={areaCounts}
+          onAreaChange={setArea}
+          onBackToChooser={onBackToChooser}
+        />
         <div className="flex flex-1 items-center justify-center p-6">
           <DbSetupPanel title="Ninja Survivors database setup" sql={NINJA_SURVIVORS_SETUP_SQL} />
         </div>
@@ -150,31 +166,38 @@ export function NinjaSurvivorsHub({ user, onSwitchPerson, onBackToChooser }: Pro
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#f4f6f8]">
-      <Sidebar area={area} onAreaChange={setArea} onBackToChooser={onBackToChooser} />
+    <div className={`relative flex h-screen overflow-hidden ${NINJA.page}`}>
+      <div className="pointer-events-none absolute -top-28 right-10 h-80 w-80 rounded-full bg-[#8B5CF6]/20 blur-[130px]" />
+      <div className="pointer-events-none absolute bottom-0 left-1/3 h-72 w-72 rounded-full bg-[#FF8C42]/10 blur-[120px]" />
+      <Sidebar
+        area={area}
+        counts={areaCounts}
+        onAreaChange={setArea}
+        onBackToChooser={onBackToChooser}
+      />
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-200/80 bg-white px-6 py-4">
+      <div className="relative z-10 flex min-w-0 flex-1 flex-col">
+        <header className={`relative z-10 flex flex-wrap items-start justify-between gap-4 border-b px-6 py-4 ${NINJA.header}`}>
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#FF6A00]">
-              Ninja Survivors / {currentArea.label}
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#FF8C42]">
+              Ninjatards / {currentArea.label}
             </p>
-            <h1 className="mt-1 text-3xl font-black tracking-tight text-slate-900">{currentArea.label}</h1>
-            <p className="mt-1 text-sm text-slate-500">
+            <h1 className="mt-1 text-3xl font-black tracking-tight text-white">{currentArea.label}</h1>
+            <p className="mt-1 text-sm text-zinc-400">
               Cards by section — click a card to add info, details, and images.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <label className="flex items-center gap-2 rounded-full border border-slate-200 bg-[#f8fafc] px-3 py-2 text-sm text-slate-500">
+            <label className="flex items-center gap-2 rounded-full border border-white/10 bg-[#16181F] px-3 py-2 text-sm text-zinc-400">
               <Search size={15} />
               <input
                 ref={searchRef}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search cards..."
-                className="w-36 bg-transparent outline-none sm:w-48"
+                className="w-36 bg-transparent text-white outline-none placeholder:text-zinc-500 sm:w-48"
               />
-              <span className="hidden rounded-md border border-slate-200 px-1.5 py-0.5 text-[10px] font-semibold text-slate-400 sm:inline">
+              <span className="hidden rounded-md border border-white/10 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-500 sm:inline">
                 ⌘ K
               </span>
             </label>
@@ -182,14 +205,14 @@ export function NinjaSurvivorsHub({ user, onSwitchPerson, onBackToChooser }: Pro
               <button
                 type="button"
                 onClick={() => setShowFilter((open) => !open)}
-                className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-600"
+                className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-[#1E2028] px-3 py-2 text-sm font-semibold text-zinc-300"
               >
                 <Filter size={14} />
                 Filter
               </button>
               {showFilter && (
-                <div className="absolute right-0 z-20 mt-2 w-44 rounded-xl border border-slate-200 bg-white p-2 shadow-lg">
-                  <p className="px-2 pb-1 text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                <div className="absolute right-0 z-20 mt-2 w-44 rounded-xl border border-white/10 bg-[#1E2028] p-2 shadow-2xl">
+                  <p className="px-2 pb-1 text-[10px] font-bold uppercase tracking-wide text-zinc-500">
                     Owner
                   </p>
                   <button
@@ -198,7 +221,7 @@ export function NinjaSurvivorsHub({ user, onSwitchPerson, onBackToChooser }: Pro
                       setOwnerFilter("");
                       setShowFilter(false);
                     }}
-                    className="block w-full rounded-lg px-2 py-1.5 text-left text-sm hover:bg-slate-50"
+                    className="block w-full rounded-lg px-2 py-1.5 text-left text-sm text-zinc-200 hover:bg-white/5"
                   >
                     Everyone
                   </button>
@@ -210,7 +233,7 @@ export function NinjaSurvivorsHub({ user, onSwitchPerson, onBackToChooser }: Pro
                         setOwnerFilter(name);
                         setShowFilter(false);
                       }}
-                      className="block w-full rounded-lg px-2 py-1.5 text-left text-sm hover:bg-slate-50"
+                      className="block w-full rounded-lg px-2 py-1.5 text-left text-sm text-zinc-200 hover:bg-white/5"
                     >
                       {name}
                     </button>
@@ -222,52 +245,63 @@ export function NinjaSurvivorsHub({ user, onSwitchPerson, onBackToChooser }: Pro
               type="button"
               disabled={busy}
               onClick={() => createCard("Untitled card", "idea")}
-              className="inline-flex items-center gap-2 rounded-full bg-[#FF6A00] px-4 py-2 text-sm font-bold text-white hover:bg-[#e65f00]"
+              className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold disabled:opacity-50 ${NINJA.orangeBtn}`}
             >
               <Plus size={15} />
               New card
             </button>
-            <button type="button" className="rounded-full p-2 text-slate-400 hover:bg-slate-100" aria-label="Notifications">
+            <button type="button" className="rounded-full p-2 text-zinc-400 hover:bg-white/5" aria-label="Notifications">
               <Bell size={18} />
             </button>
             <button
               type="button"
               onClick={onSwitchPerson}
               title="Switch person"
-              className="flex items-center gap-2 rounded-full py-1 pl-1 pr-2 hover:bg-slate-100"
+              className="flex items-center gap-2 rounded-full py-1 pl-1 pr-2 hover:bg-white/5"
             >
-              <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-200 text-[10px] font-bold text-slate-700">
+              <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#FF8C42]/20 text-[10px] font-bold text-[#FF8C42]">
                 {initialsFromName(displayName)}
               </span>
-              <span className="hidden text-sm font-semibold text-slate-700 sm:inline">{displayName}</span>
+              <span className="hidden text-sm font-semibold text-zinc-200 sm:inline">{displayName}</span>
             </button>
           </div>
         </header>
 
-        <main className="flex min-h-0 flex-1 flex-col px-4 py-4 sm:px-6">
+        <main className="relative z-10 flex min-h-0 flex-1 flex-col px-4 py-4 sm:px-6">
+          <div className="mb-3 flex items-center gap-3 md:hidden">
+            <NinjaIcon className="h-10 w-10 shrink-0" />
+            <NinjaLogo className="h-8 min-w-0 flex-1" />
+          </div>
           <div className="mb-3 flex gap-2 overflow-x-auto md:hidden">
             {NINJA_AREAS.map((entry) => (
               <button
                 key={entry.id}
                 type="button"
                 onClick={() => setArea(entry.id)}
-                className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-bold ${
-                  entry.id === area ? "bg-[#FF6A00] text-white" : "bg-white text-slate-600"
+                className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold ${
+                  entry.id === area ? "bg-[#FF8C42] text-white" : "bg-[#1E2028] text-zinc-300"
                 }`}
               >
                 {entry.label}
+                <span
+                  className={`inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] ${
+                    entry.id === area ? "bg-white/20 text-white" : "bg-[#FF8C42] text-white"
+                  }`}
+                >
+                  {areaCounts[entry.id]}
+                </span>
               </button>
             ))}
           </div>
 
           {error && !isMissingNinjaItemsTableError(error.message) && (
-            <p className="mb-3 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+            <p className="mb-3 rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm font-medium text-rose-300">
               Could not load from Supabase: {error.message}
             </p>
           )}
 
           {isLoading ? (
-            <p className="text-sm font-medium text-slate-500">Loading board…</p>
+            <p className="text-sm font-medium text-zinc-400">Loading board…</p>
           ) : (
             <NinjaBoardTable
               area={area}
@@ -289,7 +323,7 @@ export function NinjaSurvivorsHub({ user, onSwitchPerson, onBackToChooser }: Pro
             />
           )}
 
-          {mutationError && <p className="mt-3 text-sm font-medium text-red-600">{mutationError}</p>}
+          {mutationError && <p className="mt-3 text-sm font-medium text-rose-400">{mutationError}</p>}
         </main>
       </div>
 
@@ -316,10 +350,13 @@ export function NinjaSurvivorsHub({ user, onSwitchPerson, onBackToChooser }: Pro
               mut.deleteItem.mutate(openItem, { onSuccess: () => setOpenId(null) });
             }
           }}
-          onUpload={(file) =>
+          onUpload={(files) =>
             mut.uploadImage.mutate(
-              { itemId: openItem.id, file, actor: user },
-              { onSuccess: () => flashSaved("Image saved") },
+              { itemId: openItem.id, files, actor: user },
+              {
+                onSuccess: (uploaded) =>
+                  flashSaved(uploaded.length === 1 ? "Image saved" : `${uploaded.length} images saved`),
+              },
             )
           }
           onDeleteImage={(imageId) => {
@@ -348,23 +385,23 @@ export function NinjaSurvivorsHub({ user, onSwitchPerson, onBackToChooser }: Pro
 
 function Sidebar({
   area,
+  counts,
   onAreaChange,
   onBackToChooser,
 }: {
   area: NinjaItemArea;
+  counts: Record<NinjaItemArea, number>;
   onAreaChange: (area: NinjaItemArea) => void;
   onBackToChooser: () => void;
 }) {
   return (
-    <aside className="hidden w-60 shrink-0 flex-col border-r border-slate-200 bg-white px-3 py-5 md:flex">
-      <div className="mb-6 flex items-center gap-3 px-2">
-        <div className="rounded-xl bg-[#FF6A00] p-2 text-white">
-          <Swords size={18} />
+    <aside className={`relative z-10 hidden w-64 shrink-0 flex-col border-r px-3 py-5 md:flex ${NINJA.sidebar}`}>
+      <div className="mb-6 px-1">
+        <div className="mb-3 flex items-center gap-3">
+          <NinjaIcon className="h-12 w-12 shrink-0 ring-1 ring-[#FF8C42]/30" />
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#FF8C42]">Studio</p>
         </div>
-        <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#FF6A00]">Studio</p>
-          <h2 className="text-sm font-black text-slate-900">Ninja Survivors</h2>
-        </div>
+        <NinjaLogo className="h-11 w-full" />
       </div>
 
       <nav className="flex flex-1 flex-col gap-1">
@@ -376,22 +413,27 @@ function Sidebar({
               key={entry.id}
               type="button"
               onClick={() => onAreaChange(entry.id)}
-              className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition ${
-                active ? "bg-[#FF6A00] text-white" : "text-slate-600 hover:bg-slate-100"
+              className={`flex items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm font-semibold transition ${
+                active
+                  ? "bg-[#FF8C42]/15 text-white shadow-[0_0_24px_rgba(255,140,66,0.12)]"
+                  : "text-zinc-400 hover:bg-white/5 hover:text-zinc-200"
               }`}
             >
-              <Icon size={16} />
-              {entry.label}
+              <Icon size={16} className={`shrink-0 ${active ? "text-[#FF8C42]" : ""}`} />
+              <span className="min-w-0 flex-1 truncate">{entry.label}</span>
+              <span className="inline-flex min-w-5 shrink-0 items-center justify-center rounded-full bg-[#FF8C42] px-1.5 py-0.5 text-[10px] font-bold text-white">
+                {counts[entry.id]}
+              </span>
             </button>
           );
         })}
       </nav>
 
-      <div className="space-y-1 border-t border-slate-100 pt-3">
+      <div className="space-y-1 border-t border-white/8 pt-3">
         <button
           type="button"
           onClick={onBackToChooser}
-          className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-medium text-slate-500 hover:bg-slate-100"
+          className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-medium text-zinc-500 hover:bg-white/5 hover:text-zinc-300"
         >
           <Settings size={16} />
           Settings
@@ -399,7 +441,7 @@ function Sidebar({
         <button
           type="button"
           onClick={onBackToChooser}
-          className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-medium text-slate-500 hover:bg-slate-100"
+          className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-medium text-zinc-500 hover:bg-white/5 hover:text-zinc-300"
         >
           <CircleHelp size={16} />
           Help & Support
@@ -407,7 +449,7 @@ function Sidebar({
         <button
           type="button"
           onClick={onBackToChooser}
-          className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-medium text-slate-400 hover:bg-slate-100"
+          className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-medium text-zinc-500 hover:bg-white/5 hover:text-zinc-300"
         >
           <ArrowLeft size={16} />
           Switch app

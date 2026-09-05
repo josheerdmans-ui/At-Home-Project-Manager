@@ -25,6 +25,7 @@ import {
   ninjaImagePublicUrl,
 } from "./ninja-types";
 import type { NinjaItemInput } from "./useNinjaItems";
+import { NINJA, tagStyle } from "./ninja-ui";
 
 type Props = {
   item: NinjaItem;
@@ -34,7 +35,7 @@ type Props = {
   onClose: () => void;
   onSave: (patch: Partial<NinjaItemInput>, after?: () => void, silent?: boolean) => void;
   onDelete: () => void;
-  onUpload: (file: File) => void;
+  onUpload: (files: File[]) => void;
   onDeleteImage: (imageId: string) => void;
   onAddCheck: (title: string) => void;
   onToggleCheck: (id: string, done: boolean) => void;
@@ -42,10 +43,10 @@ type Props = {
 };
 
 const STAGE_PILL: Record<NinjaItemStage, string> = {
-  idea: "bg-sky-100 text-sky-800",
-  working_on: "bg-orange-100 text-[#c2410c]",
-  confirmed: "bg-violet-100 text-violet-800",
-  implemented: "bg-emerald-100 text-emerald-800",
+  idea: "bg-cyan-400/15 text-cyan-200",
+  working_on: "bg-orange-400/15 text-orange-200",
+  confirmed: "bg-fuchsia-400/15 text-fuchsia-200",
+  implemented: "bg-emerald-400/15 text-emerald-200",
 };
 
 const INFO_MAX = 500;
@@ -114,8 +115,12 @@ export function NinjaItemModal({
 
   const save = (e: FormEvent) => {
     e.preventDefault();
+    if (!isDirty) {
+      onClose();
+      return;
+    }
     const patch = currentPatch();
-    if (patch) onSave(patch);
+    if (patch) onSave(patch, onClose);
   };
 
   const closeAndSave = () => {
@@ -126,6 +131,21 @@ export function NinjaItemModal({
     const patch = currentPatch();
     if (patch) onSave(patch, onClose, true);
     else onClose();
+  };
+
+  const takeFiles = (list: FileList | null) => {
+    const picked = Array.from(list ?? []).filter((file) => file.type.startsWith("image/"));
+    if (picked.length === 0) return;
+    const tooBig = picked.filter((file) => file.size > 10 * 1024 * 1024);
+    const ok = picked.filter((file) => file.size <= 10 * 1024 * 1024);
+    if (tooBig.length > 0) {
+      alert(
+        tooBig.length === 1
+          ? `${tooBig[0]!.name} is larger than 10MB.`
+          : `${tooBig.length} images are larger than 10MB and were skipped.`,
+      );
+    }
+    if (ok.length > 0) onUpload(ok);
   };
 
   const addTag = () => {
@@ -145,23 +165,23 @@ export function NinjaItemModal({
   const owners = Array.from(new Set(["", ...ownerOptions, owner].filter((value, index, all) => all.indexOf(value) === index)));
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/30 p-4 backdrop-blur-[2px]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-md">
       <form
         onSubmit={save}
-        className="flex max-h-[94vh] w-full max-w-[1100px] flex-col overflow-hidden rounded-2xl bg-white shadow-[0_24px_80px_rgba(15,23,42,0.18)]"
+        className="flex max-h-[94vh] w-full max-w-[1100px] flex-col overflow-hidden rounded-3xl border border-white/10 bg-[#16181F]/90 text-[#F3F4F6] shadow-[0_24px_80px_rgba(0,0,0,0.55)] backdrop-blur-xl"
       >
         <header className="flex items-start justify-between gap-4 px-7 pt-6 pb-4">
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#FF6A00]">Card</p>
-            <h2 className="mt-1 text-[28px] leading-none font-black text-slate-900">Edit item</h2>
-            <p className="mt-2 text-sm text-slate-500">
+            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#FF8C42]">Card</p>
+            <h2 className="mt-1 text-[28px] leading-none font-black text-white">Edit item</h2>
+            <p className="mt-2 text-sm text-zinc-400">
               Update the details, assign owners, and add any relevant information.
             </p>
           </div>
           <button
             type="button"
             onClick={closeAndSave}
-            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+            className="rounded-lg p-1.5 text-zinc-500 hover:bg-white/5 hover:text-white"
             aria-label="Close card"
           >
             <X size={20} />
@@ -176,24 +196,26 @@ export function NinjaItemModal({
                 required
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="mb-4 w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-[#FF6A00]"
+                className={`mb-4 w-full ${NINJA.input}`}
               />
 
               <div className="mb-4 grid gap-4 sm:grid-cols-2">
                 <div>
                   <FieldLabel icon={<CircleUserRound size={14} />} text="Owner" />
-                  <div className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2">
+                  <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-[#16181F] px-3 py-2">
                     <Avatar name={owner || "Unassigned"} />
                     <select
                       value={owner}
                       onChange={(e) => setOwner(e.target.value)}
-                      className="w-full bg-transparent text-sm font-medium text-slate-800 outline-none"
+                      className="w-full bg-transparent text-sm font-medium text-white outline-none [color-scheme:dark]"
                     >
-                      <option value="">Unassigned</option>
+                      <option value="" className="bg-[#1E2028]">
+                        Unassigned
+                      </option>
                       {owners
                         .filter((name) => name)
                         .map((name) => (
-                          <option key={name} value={name}>
+                          <option key={name} value={name} className="bg-[#1E2028]">
                             {name}
                           </option>
                         ))}
@@ -203,7 +225,7 @@ export function NinjaItemModal({
                     value={owner}
                     onChange={(e) => setOwner(e.target.value)}
                     placeholder="Or type a name"
-                    className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-700 outline-none focus:border-[#FF6A00]"
+                    className={`mt-2 w-full ${NINJA.input} py-2 text-xs`}
                   />
                 </div>
                 <div>
@@ -211,10 +233,10 @@ export function NinjaItemModal({
                   <select
                     value={stage}
                     onChange={(e) => setStage(e.target.value as NinjaItemStage)}
-                    className={`w-full rounded-lg border-0 px-3 py-2.5 text-sm font-bold outline-none ${STAGE_PILL[stage]}`}
+                    className={`w-full rounded-xl border-0 px-3 py-2.5 text-sm font-bold outline-none [color-scheme:dark] ${STAGE_PILL[stage]}`}
                   >
                     {NINJA_STAGES.map((entry) => (
-                      <option key={entry.id} value={entry.id}>
+                      <option key={entry.id} value={entry.id} className="bg-[#1E2028] text-white">
                         {entry.id === "idea" ? "💡 " : ""}
                         {entry.label}
                       </option>
@@ -226,14 +248,14 @@ export function NinjaItemModal({
               <div className="mb-4 grid gap-4 sm:grid-cols-2">
                 <div>
                   <FieldLabel icon={<CalendarDays size={14} />} text="Due date" />
-                  <label className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2.5 text-sm text-slate-800">
-                    <CalendarDays size={15} className="text-slate-400" />
-                    <span className="min-w-20 text-slate-700">{formatDueDate(dueDate || null)}</span>
+                  <label className="flex items-center gap-2 rounded-xl border border-white/10 bg-[#16181F] px-3 py-2.5 text-sm text-white">
+                    <CalendarDays size={15} className="text-zinc-500" />
+                    <span className="min-w-20 text-zinc-300">{formatDueDate(dueDate || null)}</span>
                     <input
                       type="date"
                       value={dueDate}
                       onChange={(e) => setDueDate(e.target.value)}
-                      className="w-full bg-transparent text-sm outline-none"
+                      className="w-full bg-transparent text-sm outline-none [color-scheme:dark]"
                     />
                   </label>
                 </div>
@@ -242,10 +264,10 @@ export function NinjaItemModal({
                   <select
                     value={priority}
                     onChange={(e) => setPriority(e.target.value as NinjaItemPriority)}
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm font-semibold text-slate-800 outline-none"
+                    className={`w-full ${NINJA.input} font-semibold [color-scheme:dark]`}
                   >
                     {NINJA_PRIORITIES.map((entry) => (
-                      <option key={entry.id} value={entry.id}>
+                      <option key={entry.id} value={entry.id} className="bg-[#1E2028] text-white">
                         {entry.label}
                       </option>
                     ))}
@@ -254,17 +276,17 @@ export function NinjaItemModal({
               </div>
 
               <FieldLabel icon={<Tag size={14} />} text="Tags / Category" />
-              <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 px-3 py-2.5">
+              <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-[#16181F] px-3 py-2.5">
                 {item.tags.map((tag) => (
                   <span
                     key={tag}
-                    className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600"
+                    className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${tagStyle(tag)}`}
                   >
                     {tag}
                     <button
                       type="button"
                       onClick={() => onSave({ tags: item.tags.filter((value) => value !== tag) }, undefined, true)}
-                      className="text-slate-400 hover:text-slate-700"
+                      className="text-current/70 hover:text-white"
                       aria-label={`Remove ${tag}`}
                     >
                       <X size={11} />
@@ -290,7 +312,7 @@ export function NinjaItemModal({
                   <button
                     type="button"
                     onClick={() => setAddingTag(true)}
-                    className="text-xs font-semibold text-slate-500 hover:text-[#FF6A00]"
+                    className="text-xs font-semibold text-zinc-400 hover:text-[#FF8C42]"
                   >
                     + Add tag
                   </button>
@@ -304,9 +326,9 @@ export function NinjaItemModal({
                   maxLength={INFO_MAX}
                   value={info}
                   onChange={(e) => setInfo(e.target.value.slice(0, INFO_MAX))}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2.5 pr-16 text-sm text-slate-800 outline-none focus:border-[#FF6A00]"
+                  className={`w-full pr-16 ${NINJA.input}`}
                 />
-                <span className="absolute right-3 bottom-2 text-[11px] text-slate-400">
+                <span className="absolute right-3 bottom-2 text-[11px] text-zinc-500">
                   {info.length}/{INFO_MAX}
                 </span>
               </div>
@@ -318,24 +340,24 @@ export function NinjaItemModal({
                   maxLength={DETAILS_MAX}
                   value={details}
                   onChange={(e) => setDetails(e.target.value.slice(0, DETAILS_MAX))}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2.5 pr-16 text-sm text-slate-800 outline-none focus:border-[#FF6A00]"
+                  className={`w-full pr-16 ${NINJA.input}`}
                 />
-                <span className="absolute right-3 bottom-2 text-[11px] text-slate-400">
+                <span className="absolute right-3 bottom-2 text-[11px] text-zinc-500">
                   {details.length}/{DETAILS_MAX}
                 </span>
               </div>
             </div>
 
             <div className="flex flex-col gap-4">
-              <section className="rounded-xl border border-slate-200 p-4">
+              <section className="rounded-2xl border border-white/10 bg-[#1E2028]/70 p-4">
                 <div className="mb-2 flex items-center justify-between">
                   <FieldLabel icon={<CheckSquare size={14} />} text="Checklist" className="mb-0" />
-                  <span className="text-xs font-medium text-slate-500">
+                  <span className="text-xs font-medium text-zinc-500">
                     {doneCount} of {item.checks.length} completed
                   </span>
                 </div>
-                <div className="mb-3 h-1.5 overflow-hidden rounded-full bg-slate-100">
-                  <div className="h-full rounded-full bg-emerald-500" style={{ width: `${progress}%` }} />
+                <div className="mb-3 h-1.5 overflow-hidden rounded-full bg-white/10">
+                  <div className="h-full rounded-full bg-[#FF8C42]" style={{ width: `${progress}%` }} />
                 </div>
                 <ul className="space-y-2">
                   {item.checks.map((check) => (
@@ -345,15 +367,15 @@ export function NinjaItemModal({
                         checked={check.done}
                         disabled={busy}
                         onChange={() => onToggleCheck(check.id, !check.done)}
-                        className="h-4 w-4 rounded border-slate-300 text-sky-600"
+                        className="h-4 w-4 rounded border-white/20 bg-transparent text-[#FF8C42]"
                       />
-                      <span className={`flex-1 text-sm ${check.done ? "text-slate-400 line-through" : "text-slate-800"}`}>
+                      <span className={`flex-1 text-sm ${check.done ? "text-zinc-500 line-through" : "text-zinc-100"}`}>
                         {check.title}
                       </span>
                       <button
                         type="button"
                         onClick={() => onDeleteCheck(check.id)}
-                        className="text-slate-300 hover:text-red-500"
+                        className="text-zinc-600 hover:text-rose-400"
                         aria-label={`Remove ${check.title}`}
                       >
                         <X size={12} />
@@ -382,23 +404,23 @@ export function NinjaItemModal({
                       }
                     }}
                     placeholder="Checklist item"
-                    className="mt-3 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none"
+                    className={`mt-3 w-full ${NINJA.input}`}
                   />
                 ) : (
                   <button
                     type="button"
                     onClick={() => setAddingCheck(true)}
-                    className="mt-3 text-sm font-semibold text-slate-500 hover:text-[#FF6A00]"
+                    className="mt-3 text-sm font-semibold text-zinc-400 hover:text-[#FF8C42]"
                   >
                     + Add checklist item
                   </button>
                 )}
               </section>
 
-              <section className="rounded-xl border border-slate-200 p-4">
+              <section className="rounded-2xl border border-white/10 bg-[#1E2028]/70 p-4">
                 <div className="mb-3 flex items-center justify-between">
                   <FieldLabel icon={<ImageIcon size={14} />} text="Images" className="mb-0" />
-                  <span className="text-xs font-medium text-slate-500">
+                  <span className="text-xs font-medium text-zinc-500">
                     {item.images.length} image{item.images.length === 1 ? "" : "s"}
                   </span>
                 </div>
@@ -414,7 +436,7 @@ export function NinjaItemModal({
                         type="button"
                         disabled={busy}
                         onClick={() => onDeleteImage(image.id)}
-                        className="absolute top-1.5 right-1.5 rounded-full bg-white/90 p-1 text-slate-500 shadow-sm hover:text-red-600"
+                        className="absolute top-1.5 right-1.5 rounded-full bg-black/70 p-1 text-zinc-300 shadow-sm hover:text-rose-400"
                         aria-label={`Remove ${image.fileName}`}
                       >
                         <X size={12} />
@@ -425,46 +447,50 @@ export function NinjaItemModal({
                     type="button"
                     disabled={busy}
                     onClick={() => fileRef.current?.click()}
-                    className="flex h-28 flex-col items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 text-slate-500 hover:border-[#FF6A00] hover:text-[#FF6A00]"
+                    onDragOver={(event) => {
+                      event.preventDefault();
+                      event.dataTransfer.dropEffect = "copy";
+                    }}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      takeFiles(event.dataTransfer.files);
+                    }}
+                    className="flex h-28 flex-col items-center justify-center rounded-xl border border-dashed border-[#FF8C42]/40 bg-[#FF8C42]/8 text-zinc-400 hover:border-[#FF8C42] hover:text-[#FF8C42]"
                   >
                     <Upload size={18} />
                     <span className="mt-1 text-xs font-semibold">Upload images</span>
-                    <span className="mt-0.5 text-[10px] text-slate-400">JPG, PNG, GIF (Max 10MB)</span>
+                    <span className="mt-0.5 text-[10px] text-zinc-500">JPG, PNG, GIF · several at once · 10MB each</span>
                   </button>
                 </div>
                 <input
                   ref={fileRef}
                   type="file"
                   accept="image/jpeg,image/png,image/gif,image/webp"
+                  multiple
                   className="hidden"
                   onChange={(e) => {
-                    const file = e.target.files?.[0];
+                    takeFiles(e.target.files);
                     e.target.value = "";
-                    if (file && file.size > 10 * 1024 * 1024) {
-                      alert("Image must be 10MB or smaller.");
-                      return;
-                    }
-                    if (file) onUpload(file);
                   }}
                 />
-                {uploadError && <p className="mt-2 text-sm font-medium text-red-600">{uploadError}</p>}
+                {uploadError && <p className="mt-2 text-sm font-medium text-rose-400">{uploadError}</p>}
               </section>
 
-              <section className="rounded-xl border border-slate-200 p-4">
+              <section className="rounded-2xl border border-white/10 bg-[#1E2028]/70 p-4">
                 <FieldLabel icon={<MessageSquare size={14} />} text="Activity" />
                 {item.activity.length === 0 ? (
-                  <p className="text-sm text-slate-400">No activity yet.</p>
+                  <p className="text-sm text-zinc-500">No activity yet.</p>
                 ) : (
                   <ul className="space-y-3">
                     {item.activity.map((entry) => (
                       <li key={entry.id} className="flex gap-2.5">
                         <Avatar name={entry.actor} />
                         <div>
-                          <p className="text-sm font-semibold text-slate-800">
+                          <p className="text-sm font-semibold text-white">
                             {entry.actor}{" "}
-                            <span className="font-medium text-slate-400">{formatActivityTime(entry.createdAt)}</span>
+                            <span className="font-medium text-zinc-500">{formatActivityTime(entry.createdAt)}</span>
                           </p>
-                          <p className="text-sm text-slate-500">{entry.message}</p>
+                          <p className="text-sm text-zinc-400">{entry.message}</p>
                         </div>
                       </li>
                     ))}
@@ -475,12 +501,12 @@ export function NinjaItemModal({
           </div>
         </div>
 
-        <footer className="flex items-center justify-between gap-3 border-t border-slate-100 px-7 py-4">
+        <footer className="flex items-center justify-between gap-3 border-t border-white/8 px-7 py-4">
           <button
             type="button"
             disabled={busy}
             onClick={onDelete}
-            className="inline-flex items-center gap-2 rounded-lg border border-red-200 px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-xl border border-rose-500/30 px-3 py-2 text-sm font-semibold text-rose-400 hover:bg-rose-500/10 disabled:opacity-50"
           >
             <Trash2 size={15} />
             Delete card
@@ -489,14 +515,14 @@ export function NinjaItemModal({
             <button
               type="button"
               onClick={closeAndSave}
-              className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              className="rounded-xl border border-white/10 px-4 py-2 text-sm font-semibold text-zinc-300 hover:bg-white/5"
             >
               Close
             </button>
             <button
               type="submit"
               disabled={busy || title.trim().length === 0}
-              className="rounded-lg bg-[#FF6A00] px-5 py-2 text-sm font-bold text-white hover:bg-[#e65f00] disabled:opacity-50"
+              className={`rounded-xl px-5 py-2 text-sm font-bold disabled:opacity-50 ${NINJA.orangeBtn}`}
             >
               {busy ? "Saving…" : "Save"}
             </button>
@@ -517,8 +543,8 @@ function FieldLabel({
   className?: string;
 }) {
   return (
-    <p className={`flex items-center gap-1.5 text-sm font-semibold text-slate-700 ${className}`}>
-      <span className="text-slate-400">{icon}</span>
+    <p className={`flex items-center gap-1.5 text-sm font-semibold text-zinc-300 ${className}`}>
+      <span className="text-zinc-500">{icon}</span>
       {text}
     </p>
   );
@@ -526,7 +552,7 @@ function FieldLabel({
 
 function Avatar({ name }: { name: string }) {
   return (
-    <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-200 text-[10px] font-bold text-slate-700">
+    <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#FF8C42]/20 text-[10px] font-bold text-[#FF8C42]">
       {name === "Unassigned" ? <CircleUserRound size={14} /> : initialsFromName(name)}
     </span>
   );

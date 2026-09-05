@@ -1,5 +1,6 @@
-import { Home, Swords } from "lucide-react";
+import { Home } from "lucide-react";
 import { env } from "../lib/env";
+import { NinjaIcon, NinjaLogo } from "../ninja/NinjaBrand";
 
 export type AppDestination = "home" | "ninja";
 
@@ -45,17 +46,15 @@ export function AppChooser({ onChoose }: Props) {
           <button
             type="button"
             onClick={() => onChoose("ninja")}
-            className="group flex flex-col items-start gap-4 rounded-[2rem] border border-white/80 bg-white/50 p-8 text-left shadow-[0_8px_30px_rgb(0,0,0,0.08)] backdrop-blur-2xl transition hover:-translate-y-1 hover:bg-white/80 hover:shadow-[0_20px_40px_rgb(0,0,0,0.12)]"
+            className="group flex flex-col items-start gap-4 overflow-hidden rounded-[2rem] border border-zinc-800 bg-[#0F1115] p-8 text-left shadow-[0_8px_30px_rgb(0,0,0,0.18)] transition hover:-translate-y-1 hover:border-[#FF8C42]/50 hover:shadow-[0_20px_40px_rgba(255,140,66,0.18)]"
           >
-            <div className="rounded-2xl bg-orange-100 p-4 text-[#FF6A00] transition group-hover:bg-[#FF6A00] group-hover:text-white">
-              <Swords size={32} />
+            <div className="flex w-full items-center gap-3">
+              <NinjaIcon className="h-16 w-16 shrink-0 rounded-2xl ring-1 ring-[#FF8C42]/40" />
+              <NinjaLogo className="h-12 min-w-0 flex-1" />
             </div>
-            <div>
-              <h2 className="text-2xl font-black text-slate-800">Ninja Survivors</h2>
-              <p className="mt-2 text-sm font-medium leading-relaxed text-slate-500">
-                Shared board for ideas, confirmed work, implemented features, and testing.
-              </p>
-            </div>
+            <p className="text-sm font-medium leading-relaxed text-zinc-400">
+              Shared board for ideas, confirmed work, implemented features, and testing.
+            </p>
           </button>
         </div>
       </div>
