@@ -1,35 +1,26 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import {
-  CalendarDays,
   CheckSquare,
   CircleUserRound,
   Clock3,
   FileText,
-  Flag,
   Image as ImageIcon,
-  Info,
   MessageSquare,
-  Tag,
+  Send,
   Trash2,
   Type,
   Upload,
   X,
 } from "lucide-react";
-import type { NinjaItem, NinjaItemPriority, NinjaItemStage } from "./ninja-types";
-import {
-  formatActivityTime,
-  formatDueDate,
-  initialsFromName,
-  NINJA_PRIORITIES,
-  NINJA_STAGES,
-  ninjaImagePublicUrl,
-} from "./ninja-types";
+import type { NinjaItem, NinjaItemStage } from "./ninja-types";
+import { formatActivityTime, initialsFromName, NINJA_STAGES, ninjaImagePublicUrl } from "./ninja-types";
 import type { NinjaItemInput } from "./useNinjaItems";
 import { NinjaImageViewer } from "./NinjaImageViewer";
-import { NINJA, tagStyle } from "./ninja-ui";
+import { NINJA } from "./ninja-ui";
 
 type Props = {
   item: NinjaItem;
+  user: string;
   ownerOptions: string[];
   busy: boolean;
   uploadError: string | null;
@@ -41,6 +32,8 @@ type Props = {
   onAddCheck: (title: string) => void;
   onToggleCheck: (id: string, done: boolean) => void;
   onDeleteCheck: (id: string) => void;
+  onAddComment: (body: string) => void;
+  onDeleteComment: (id: string) => void;
 };
 
 const STAGE_PILL: Record<NinjaItemStage, string> = {
@@ -50,11 +43,12 @@ const STAGE_PILL: Record<NinjaItemStage, string> = {
   implemented: "bg-emerald-400/15 text-emerald-200",
 };
 
-const INFO_MAX = 500;
 const DETAILS_MAX = 20000;
+const COMMENT_MAX = 2000;
 
 export function NinjaItemModal({
   item,
+  user,
   ownerOptions,
   busy,
   uploadError,
@@ -66,29 +60,24 @@ export function NinjaItemModal({
   onAddCheck,
   onToggleCheck,
   onDeleteCheck,
+  onAddComment,
+  onDeleteComment,
 }: Props) {
   const [title, setTitle] = useState(item.title);
   const [owner, setOwner] = useState(item.owner ?? "");
-  const [info, setInfo] = useState(item.info);
   const [details, setDetails] = useState(item.details);
   const [stage, setStage] = useState(item.stage);
-  const [dueDate, setDueDate] = useState(item.dueDate ?? "");
-  const [priority, setPriority] = useState<NinjaItemPriority>(item.priority);
-  const [tagDraft, setTagDraft] = useState("");
   const [checkDraft, setCheckDraft] = useState("");
-  const [addingTag, setAddingTag] = useState(false);
   const [addingCheck, setAddingCheck] = useState(false);
+  const [commentDraft, setCommentDraft] = useState("");
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setTitle(item.title);
     setOwner(item.owner ?? "");
-    setInfo(item.info);
     setDetails(item.details);
     setStage(item.stage);
-    setDueDate(item.dueDate ?? "");
-    setPriority(item.priority);
   }, [item]);
 
   const currentPatch = (): Partial<NinjaItemInput> | null => {
@@ -97,23 +86,16 @@ export function NinjaItemModal({
     return {
       title: trimmedTitle,
       owner: owner.trim() || null,
-      info: info.slice(0, INFO_MAX),
       details: details.slice(0, DETAILS_MAX),
       stage,
-      dueDate: dueDate || null,
-      priority,
-      tags: item.tags,
     };
   };
 
   const isDirty =
     title.trim() !== item.title ||
     (owner.trim() || null) !== item.owner ||
-    info !== item.info ||
     details !== item.details ||
-    stage !== item.stage ||
-    (dueDate || null) !== item.dueDate ||
-    priority !== item.priority;
+    stage !== item.stage;
 
   const save = (e: FormEvent) => {
     e.preventDefault();
@@ -150,18 +132,6 @@ export function NinjaItemModal({
     if (ok.length > 0) onUpload(ok);
   };
 
-  const addTag = () => {
-    const next = tagDraft.trim().toLowerCase();
-    if (!next || item.tags.includes(next)) {
-      setTagDraft("");
-      setAddingTag(false);
-      return;
-    }
-    onSave({ tags: [...item.tags, next] }, undefined, true);
-    setTagDraft("");
-    setAddingTag(false);
-  };
-
   const doneCount = item.checks.filter((check) => check.done).length;
   const progress = item.checks.length === 0 ? 0 : Math.round((doneCount / item.checks.length) * 100);
   const owners = Array.from(new Set(["", ...ownerOptions, owner].filter((value, index, all) => all.indexOf(value) === index)));
@@ -191,7 +161,7 @@ export function NinjaItemModal({
         </header>
 
         <div className="min-h-0 flex-1 overflow-auto px-7 pb-2">
-          <div className="grid gap-8 lg:grid-cols-[1.35fr_0.9fr]">
+          <div className="grid items-start gap-8 lg:grid-cols-[1.35fr_0.9fr]">
             <div>
               <FieldLabel icon={<Type size={14} />} text="Title" />
               <input
@@ -247,93 +217,98 @@ export function NinjaItemModal({
                 </div>
               </div>
 
-              <div className="mb-4 grid gap-4 sm:grid-cols-2">
-                <div>
-                  <FieldLabel icon={<CalendarDays size={14} />} text="Due date" />
-                  <label className="flex items-center gap-2 rounded-xl border border-white/10 bg-[#16181F] px-3 py-2.5 text-sm text-white">
-                    <CalendarDays size={15} className="text-zinc-500" />
-                    <span className="min-w-20 text-zinc-300">{formatDueDate(dueDate || null)}</span>
-                    <input
-                      type="date"
-                      value={dueDate}
-                      onChange={(e) => setDueDate(e.target.value)}
-                      className="w-full bg-transparent text-sm outline-none [color-scheme:dark]"
-                    />
-                  </label>
-                </div>
-                <div>
-                  <FieldLabel icon={<Flag size={14} />} text="Priority" />
-                  <select
-                    value={priority}
-                    onChange={(e) => setPriority(e.target.value as NinjaItemPriority)}
-                    className={`w-full ${NINJA.input} font-semibold [color-scheme:dark]`}
-                  >
-                    {NINJA_PRIORITIES.map((entry) => (
-                      <option key={entry.id} value={entry.id} className="bg-[#1E2028] text-white">
-                        {entry.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <FieldLabel icon={<Tag size={14} />} text="Tags / Category" />
-              <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-[#16181F] px-3 py-2.5">
-                {item.tags.map((tag) => (
-                  <span
-                    key={tag}
-                    className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${tagStyle(tag)}`}
-                  >
-                    {tag}
-                    <button
-                      type="button"
-                      onClick={() => onSave({ tags: item.tags.filter((value) => value !== tag) }, undefined, true)}
-                      className="text-current/70 hover:text-white"
-                      aria-label={`Remove ${tag}`}
-                    >
-                      <X size={11} />
-                    </button>
-                  </span>
-                ))}
-                {addingTag ? (
-                  <input
-                    autoFocus
-                    value={tagDraft}
-                    onChange={(e) => setTagDraft(e.target.value)}
-                    onBlur={addTag}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        addTag();
-                      }
-                    }}
-                    className="w-28 bg-transparent text-xs outline-none"
-                    placeholder="tag name"
-                  />
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => setAddingTag(true)}
-                    className="text-xs font-semibold text-zinc-400 hover:text-[#FF8C42]"
-                  >
-                    + Add tag
-                  </button>
-                )}
-              </div>
-
-              <FieldLabel icon={<Info size={14} />} text="Info" />
-              <div className="relative">
-                <textarea
-                  rows={3}
-                  maxLength={INFO_MAX}
-                  value={info}
-                  onChange={(e) => setInfo(e.target.value.slice(0, INFO_MAX))}
-                  className={`w-full pr-16 ${NINJA.input}`}
-                />
-                <span className="absolute right-3 bottom-2 text-[11px] text-zinc-500">
-                  {info.length}/{INFO_MAX}
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <FieldLabel icon={<FileText size={14} />} text="Details" className="mb-0" />
+                <span className="text-[11px] text-zinc-500">
+                  {details.length}/{DETAILS_MAX}
                 </span>
               </div>
+              <textarea
+                rows={14}
+                maxLength={DETAILS_MAX}
+                value={details}
+                onChange={(e) => setDetails(e.target.value.slice(0, DETAILS_MAX))}
+                placeholder="Paste or write the full details here..."
+                className={`${NINJA.input} min-h-56 w-full resize-y whitespace-pre-wrap font-mono text-xs leading-5`}
+              />
+
+              <section className="mt-5 rounded-2xl border border-white/10 bg-[#1E2028]/70 p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <FieldLabel icon={<MessageSquare size={14} />} text="Comments" className="mb-0" />
+                  <span className="text-xs font-medium text-zinc-500">
+                    {item.comments.length} comment{item.comments.length === 1 ? "" : "s"}
+                  </span>
+                </div>
+                {item.comments.length === 0 ? (
+                  <p className="text-sm text-zinc-500">No comments yet. Leave the first note.</p>
+                ) : (
+                  <ul className="max-h-64 space-y-3 overflow-auto pr-1">
+                    {item.comments.map((comment) => (
+                      <li key={comment.id} className="flex gap-2.5">
+                        <Avatar name={comment.actor} />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold text-white">
+                            {comment.actor}{" "}
+                            <span className="font-medium text-zinc-500">
+                              {formatActivityTime(comment.createdAt)}
+                            </span>
+                          </p>
+                          <p className="whitespace-pre-wrap text-sm text-zinc-300">{comment.body}</p>
+                        </div>
+                        {comment.actor === user && (
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => onDeleteComment(comment.id)}
+                            className="self-start text-zinc-600 hover:text-rose-400"
+                            aria-label={`Delete comment from ${comment.actor}`}
+                          >
+                            <X size={12} />
+                          </button>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <div className="mt-3">
+                  <textarea
+                    rows={3}
+                    maxLength={COMMENT_MAX}
+                    value={commentDraft}
+                    onChange={(event) => setCommentDraft(event.target.value.slice(0, COMMENT_MAX))}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" && !event.shiftKey) {
+                        event.preventDefault();
+                        const body = commentDraft.trim();
+                        if (!body || busy) return;
+                        onAddComment(body);
+                        setCommentDraft("");
+                      }
+                    }}
+                    placeholder="Write a comment... Enter to post"
+                    className={`w-full ${NINJA.input}`}
+                  />
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <span className="text-[11px] text-zinc-500">
+                      {commentDraft.length}/{COMMENT_MAX}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={busy || commentDraft.trim().length === 0}
+                      onClick={() => {
+                        const body = commentDraft.trim();
+                        if (!body) return;
+                        onAddComment(body);
+                        setCommentDraft("");
+                      }}
+                      className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold disabled:opacity-50 ${NINJA.orangeBtn}`}
+                    >
+                      Comment
+                      <Send size={12} />
+                    </button>
+                  </div>
+                </div>
+              </section>
             </div>
 
             <div className="flex flex-col gap-4">
@@ -493,23 +468,6 @@ export function NinjaItemModal({
               </section>
             </div>
           </div>
-
-          <section className="mt-8 rounded-2xl border border-white/10 bg-[#1E2028]/70 p-4">
-            <div className="mb-2 flex items-center justify-between gap-3">
-              <FieldLabel icon={<FileText size={14} />} text="Details" className="mb-0" />
-              <span className="text-[11px] text-zinc-500">
-                {details.length}/{DETAILS_MAX}
-              </span>
-            </div>
-            <textarea
-              rows={16}
-              maxLength={DETAILS_MAX}
-              value={details}
-              onChange={(e) => setDetails(e.target.value.slice(0, DETAILS_MAX))}
-              placeholder="Paste or write the full details here..."
-              className={`${NINJA.input} min-h-72 w-full resize-y whitespace-pre-wrap font-mono text-xs leading-5`}
-            />
-          </section>
         </div>
 
         <footer className="flex items-center justify-between gap-3 border-t border-white/8 px-7 py-4">

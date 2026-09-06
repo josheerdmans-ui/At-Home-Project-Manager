@@ -1,13 +1,7 @@
 import { useState, type DragEvent } from "react";
-import { CalendarDays, Image as ImageIcon, MoreHorizontal, Plus } from "lucide-react";
+import { Image as ImageIcon, MessageSquare, MoreHorizontal, Plus } from "lucide-react";
 import type { NinjaItem, NinjaItemArea, NinjaItemStage } from "./ninja-types";
-import {
-  formatDueDate,
-  initialsFromName,
-  NINJA_STAGES,
-  ninjaImagePublicUrl,
-} from "./ninja-types";
-import { tagStyle } from "./ninja-ui";
+import { initialsFromName, NINJA_STAGES, ninjaImagePublicUrl } from "./ninja-types";
 
 type Props = {
   area: NinjaItemArea;
@@ -253,17 +247,7 @@ function BoardCard({
       )}
 
       <h4 className="text-sm font-bold text-white">{item.title}</h4>
-      {item.info && <p className="mt-1 line-clamp-2 text-xs leading-5 text-zinc-400">{item.info}</p>}
-
-      {item.tags.length > 0 && (
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          {item.tags.slice(0, 4).map((tag) => (
-            <span key={tag} className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${tagStyle(tag)}`}>
-              {tag}
-            </span>
-          ))}
-        </div>
-      )}
+      {item.details && <p className="mt-1 line-clamp-2 text-xs leading-5 text-zinc-400">{item.details}</p>}
 
       {total > 0 && (
         <div className="mt-3">
@@ -290,16 +274,16 @@ function BoardCard({
           )}
         </div>
         <div className="flex shrink-0 items-center gap-2 text-[10px] font-medium text-zinc-500">
+          {item.comments.length > 0 && (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#FF8C42]/15 px-2 py-0.5 text-xs font-bold text-[#FF8C42] shadow-[0_0_12px_rgba(255,140,66,0.55)]">
+              <MessageSquare size={14} className="drop-shadow-[0_0_6px_rgba(255,140,66,0.9)]" />
+              {item.comments.length}
+            </span>
+          )}
           {item.images.length > 0 && (
             <span className="inline-flex items-center gap-1">
               <ImageIcon size={11} />
               {item.images.length}
-            </span>
-          )}
-          {item.dueDate && (
-            <span className="inline-flex items-center gap-1">
-              <CalendarDays size={11} />
-              {formatDueDate(item.dueDate)}
             </span>
           )}
         </div>

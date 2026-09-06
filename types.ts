@@ -898,6 +898,38 @@ export interface Database {
           },
         ];
       };
+      ninja_item_comments: {
+        Row: {
+          id: string;
+          item_id: string;
+          actor: string;
+          body: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          item_id: string;
+          actor: string;
+          body: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          item_id?: string;
+          actor?: string;
+          body?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "ninja_item_comments_item_id_fkey";
+            columns: ["item_id"];
+            isOneToOne: false;
+            referencedRelation: "ninja_items";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       ninja_item_activity: {
         Row: {
           id: string;
@@ -1072,6 +1104,8 @@ export type NinjaItemCheckRow = Tables["ninja_item_checks"]["Row"];
 export type NinjaItemCheckInsert = Tables["ninja_item_checks"]["Insert"];
 export type NinjaItemActivityRow = Tables["ninja_item_activity"]["Row"];
 export type NinjaItemActivityInsert = Tables["ninja_item_activity"]["Insert"];
+export type NinjaItemCommentRow = Tables["ninja_item_comments"]["Row"];
+export type NinjaItemCommentInsert = Tables["ninja_item_comments"]["Insert"];
 export type NinjaIdeaRow = Tables["ninja_ideas"]["Row"];
 export type NinjaIdeaInsert = Tables["ninja_ideas"]["Insert"];
 export type NinjaIdeaVoteRow = Tables["ninja_idea_votes"]["Row"];

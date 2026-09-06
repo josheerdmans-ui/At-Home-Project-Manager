@@ -127,7 +127,7 @@ export function NinjaSurvivorsHub({ user, onSwitchPerson, onBackToChooser }: Pro
       if (!needle) return true;
       return (
         item.title.toLowerCase().includes(needle) ||
-        item.info.toLowerCase().includes(needle) ||
+        item.details.toLowerCase().includes(needle) ||
         item.tags.some((tag) => tag.toLowerCase().includes(needle))
       );
     });
@@ -145,6 +145,8 @@ export function NinjaSurvivorsHub({ user, onSwitchPerson, onBackToChooser }: Pro
     mut.addCheck.isPending ||
     mut.toggleCheck.isPending ||
     mut.deleteCheck.isPending ||
+    mut.addComment.isPending ||
+    mut.deleteComment.isPending ||
     mut.moveCards.isPending ||
     ideaMut.createIdea.isPending ||
     ideaMut.toggleVote.isPending ||
@@ -156,7 +158,9 @@ export function NinjaSurvivorsHub({ user, onSwitchPerson, onBackToChooser }: Pro
     mut.updateItem.error?.message ??
     mut.moveCards.error?.message ??
     mut.deleteItem.error?.message ??
-    mut.deleteImage.error?.message;
+    mut.deleteImage.error?.message ??
+    mut.addComment.error?.message ??
+    mut.deleteComment.error?.message;
 
   const createCard = (
     title: string,
@@ -235,7 +239,7 @@ export function NinjaSurvivorsHub({ user, onSwitchPerson, onBackToChooser }: Pro
               <p className="mt-1 text-sm text-zinc-400">
                 {screen === "dashboard"
                   ? "Studio snapshot, newest cards, and quick ideas the team can vote on."
-                  : "Cards by section — click a card to add info, details, and images."}
+                  : "Cards by section — click a card to add details, comments, and images."}
               </p>
             </div>
           )}
@@ -345,22 +349,6 @@ export function NinjaSurvivorsHub({ user, onSwitchPerson, onBackToChooser }: Pro
                 {ideasQuery.data?.length ?? 0}
               </span>
             </button>
-            <button
-              type="button"
-              onClick={() => setScreen("progress")}
-              className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold ${
-                screen === "progress" ? "bg-[#FF8C42] text-white" : "bg-[#1E2028] text-zinc-300"
-              }`}
-            >
-              Godot Progress
-              <span
-                className={`inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] ${
-                  screen === "progress" ? "bg-white/20 text-white" : "bg-[#FF8C42] text-white"
-                }`}
-              >
-                {progressQuery.data?.length ?? 0}
-              </span>
-            </button>
             {NINJA_AREAS.map((entry) => (
               <button
                 key={entry.id}
@@ -380,6 +368,22 @@ export function NinjaSurvivorsHub({ user, onSwitchPerson, onBackToChooser }: Pro
                 </span>
               </button>
             ))}
+            <button
+              type="button"
+              onClick={() => setScreen("progress")}
+              className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold ${
+                screen === "progress" ? "bg-[#FF8C42] text-white" : "bg-[#1E2028] text-zinc-300"
+              }`}
+            >
+              Godot Progress
+              <span
+                className={`inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] ${
+                  screen === "progress" ? "bg-white/20 text-white" : "bg-[#FF8C42] text-white"
+                }`}
+              >
+                {progressQuery.data?.length ?? 0}
+              </span>
+            </button>
           </div>
 
           {error && !isMissingNinjaItemsTableError(error.message) && (
@@ -417,8 +421,8 @@ export function NinjaSurvivorsHub({ user, onSwitchPerson, onBackToChooser }: Pro
                 mut.createItem.mutate(
                   {
                     title: idea.title,
-                    info: idea.voters.length > 0 ? `Hearted by: ${idea.voters.join(", ")}` : "",
-                    details: "",
+                    info: "",
+                    details: idea.voters.length > 0 ? `Hearted by: ${idea.voters.join(", ")}` : "",
                     stage: "idea",
                     area: destArea,
                     owner: user,
@@ -506,6 +510,7 @@ export function NinjaSurvivorsHub({ user, onSwitchPerson, onBackToChooser }: Pro
       {openItem && (
         <NinjaItemModal
           item={openItem}
+          user={user}
           ownerOptions={ownerOptions}
           busy={busy}
           uploadError={mut.uploadImage.error?.message ?? null}
@@ -551,6 +556,17 @@ export function NinjaSurvivorsHub({ user, onSwitchPerson, onBackToChooser }: Pro
           }
           onToggleCheck={(id, done) => mut.toggleCheck.mutate({ id, done })}
           onDeleteCheck={(id) => mut.deleteCheck.mutate(id)}
+          onAddComment={(body) =>
+            mut.addComment.mutate(
+              { itemId: openItem.id, actor: user, body },
+              { onSuccess: () => flashSaved("Comment posted") },
+            )
+          }
+          onDeleteComment={(id) => {
+            if (confirm("Delete this comment?")) {
+              mut.deleteComment.mutate(id, { onSuccess: () => flashSaved("Comment removed") });
+            }
+          }}
         />
       )}
 
@@ -612,21 +628,7 @@ function Sidebar({
             {ideaCount}
           </span>
         </button>
-        <button
-          type="button"
-          onClick={() => onScreenChange("progress")}
-          className={`flex items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm font-semibold transition ${
-            screen === "progress"
-              ? "bg-[#FF8C42]/15 text-white shadow-[0_0_24px_rgba(255,140,66,0.12)]"
-              : "text-zinc-400 hover:bg-white/5 hover:text-zinc-200"
-          }`}
-        >
-          <Rocket size={16} className={`shrink-0 ${screen === "progress" ? "text-[#FF8C42]" : ""}`} />
-          <span className="min-w-0 flex-1 truncate">Godot Progress</span>
-          <span className="inline-flex min-w-5 shrink-0 items-center justify-center rounded-full bg-[#FF8C42] px-1.5 py-0.5 text-[10px] font-bold text-white">
-            {progressCount}
-          </span>
-        </button>
+        <div className="my-2 border-t border-white/8" />
         {NINJA_AREAS.map((entry) => {
           const Icon = AREA_ICONS[entry.id];
           const active = entry.id === screen;
@@ -649,6 +651,21 @@ function Sidebar({
             </button>
           );
         })}
+        <button
+          type="button"
+          onClick={() => onScreenChange("progress")}
+          className={`mt-auto flex items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm font-semibold transition ${
+            screen === "progress"
+              ? "bg-[#FF8C42]/15 text-white shadow-[0_0_24px_rgba(255,140,66,0.12)]"
+              : "text-zinc-400 hover:bg-white/5 hover:text-zinc-200"
+          }`}
+        >
+          <Rocket size={16} className={`shrink-0 ${screen === "progress" ? "text-[#FF8C42]" : ""}`} />
+          <span className="min-w-0 flex-1 truncate">Godot Progress</span>
+          <span className="inline-flex min-w-5 shrink-0 items-center justify-center rounded-full bg-[#FF8C42] px-1.5 py-0.5 text-[10px] font-bold text-white">
+            {progressCount}
+          </span>
+        </button>
       </nav>
 
       <div className="space-y-1 border-t border-white/8 pt-3">

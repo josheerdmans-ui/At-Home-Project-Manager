@@ -5,6 +5,8 @@ import type {
   NinjaItemActivityRow,
   NinjaItemCheckInsert,
   NinjaItemCheckRow,
+  NinjaItemCommentInsert,
+  NinjaItemCommentRow,
   NinjaItemImageInsert,
   NinjaItemImageRow,
   NinjaItemInsert,
@@ -18,6 +20,7 @@ import type {
   NinjaItemActivity,
   NinjaItemArea,
   NinjaItemCheck,
+  NinjaItemComment,
   NinjaItemImage,
   NinjaItemPriority,
   NinjaItemStage,
@@ -26,10 +29,14 @@ import { NINJA_STAGES, sanitizeNinjaFileName } from "./ninja-types";
 
 export const NINJA_ITEMS_KEY = ["ninja_items"] as const;
 
+const ITEM_SELECT =
+  "*, ninja_item_images(*), ninja_item_checks(*), ninja_item_activity(*), ninja_item_comments(*)";
+
 type NinjaItemQueryRow = NinjaItemRow & {
   ninja_item_images?: NinjaItemImageRow[] | null;
   ninja_item_checks?: NinjaItemCheckRow[] | null;
   ninja_item_activity?: NinjaItemActivityRow[] | null;
+  ninja_item_comments?: NinjaItemCommentRow[] | null;
 };
 
 export function isMissingNinjaItemsTableError(message: string) {
@@ -39,7 +46,8 @@ export function isMissingNinjaItemsTableError(message: string) {
     ((lower.includes("ninja_item") || lower.includes("ninja_idea")) &&
       (lower.includes("could not find the table") ||
         lower.includes("does not exist") ||
-        lower.includes("relation"))) ||
+        lower.includes("relation") ||
+        lower.includes("ninja_item_comments"))) ||
     (lower.includes("column") &&
       (lower.includes("area") ||
         lower.includes("info") ||
@@ -81,11 +89,23 @@ function rowToActivity(row: NinjaItemActivityRow): NinjaItemActivity {
   };
 }
 
+function rowToComment(row: NinjaItemCommentRow): NinjaItemComment {
+  return {
+    id: row.id,
+    itemId: row.item_id,
+    actor: row.actor,
+    body: row.body,
+    createdAt: row.created_at,
+  };
+}
+
 function rowToItem(row: NinjaItemQueryRow): NinjaItem {
   const checks = (row.ninja_item_checks ?? []).map(rowToCheck);
   checks.sort((a, b) => a.sortOrder - b.sortOrder);
   const activity = (row.ninja_item_activity ?? []).map(rowToActivity);
   activity.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const comments = (row.ninja_item_comments ?? []).map(rowToComment);
+  comments.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   return {
     id: row.id,
     title: row.title,
@@ -100,6 +120,7 @@ function rowToItem(row: NinjaItemQueryRow): NinjaItem {
     sortOrder: row.sort_order ?? 0,
     images: (row.ninja_item_images ?? []).map(rowToImage),
     checks,
+    comments,
     activity,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -118,7 +139,7 @@ async function logActivity(itemId: string, actor: string, message: string) {
 async function fetchNinjaItems(): Promise<NinjaItem[]> {
   const { data, error } = await supabase
     .from("ninja_items")
-    .select("*, ninja_item_images(*), ninja_item_checks(*), ninja_item_activity(*)")
+    .select(ITEM_SELECT)
     .order("sort_order", { ascending: true })
     .order("created_at", { ascending: true });
 
@@ -142,6 +163,9 @@ export function useNinjaItems() {
         void qc.invalidateQueries({ queryKey: NINJA_ITEMS_KEY });
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "ninja_item_activity" }, () => {
+        void qc.invalidateQueries({ queryKey: NINJA_ITEMS_KEY });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "ninja_item_comments" }, () => {
         void qc.invalidateQueries({ queryKey: NINJA_ITEMS_KEY });
       })
       .subscribe();
@@ -232,7 +256,7 @@ export function useNinjaItemsMutations() {
         .from("ninja_items")
         .update(row)
         .eq("id", id)
-        .select("*, ninja_item_images(*), ninja_item_checks(*), ninja_item_activity(*)")
+        .select(ITEM_SELECT)
         .single();
       if (error) throw error;
       if (!silent) {
@@ -390,6 +414,35 @@ export function useNinjaItemsMutations() {
     onSuccess: invalidate,
   });
 
+  const addComment = useMutation({
+    mutationFn: async ({
+      itemId,
+      actor,
+      body,
+    }: {
+      itemId: string;
+      actor: string;
+      body: string;
+    }) => {
+      const row: NinjaItemCommentInsert = {
+        item_id: itemId,
+        actor: actor.trim() || "Team",
+        body,
+      };
+      const { error } = await supabase.from("ninja_item_comments").insert(row);
+      if (error) throw error;
+    },
+    onSuccess: invalidate,
+  });
+
+  const deleteComment = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("ninja_item_comments").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: invalidate,
+  });
+
   return {
     createItem,
     updateItem,
@@ -400,5 +453,7 @@ export function useNinjaItemsMutations() {
     addCheck,
     toggleCheck,
     deleteCheck,
+    addComment,
+    deleteComment,
   };
 }

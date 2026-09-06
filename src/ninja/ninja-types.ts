@@ -26,6 +26,14 @@ export type NinjaItemActivity = {
   createdAt: string;
 };
 
+export type NinjaItemComment = {
+  id: string;
+  itemId: string;
+  actor: string;
+  body: string;
+  createdAt: string;
+};
+
 export type NinjaProgressCategory = "gameplay" | "visuals" | "bug_fixes";
 
 export type NinjaProgressUpdate = {
@@ -92,6 +100,7 @@ export type NinjaItem = {
   sortOrder: number;
   images: NinjaItemImage[];
   checks: NinjaItemCheck[];
+  comments: NinjaItemComment[];
   activity: NinjaItemActivity[];
   createdAt: string;
   updatedAt: string;
